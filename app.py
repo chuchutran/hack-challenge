@@ -7,6 +7,9 @@ from db import Category
 from db import Bucket
 from db import Image
 
+import datetime
+import random
+
 from flask import Flask
 from flask import request 
 
@@ -40,7 +43,7 @@ def get_all_events():
     """
     CHECKOVER Endpoint for getting all events
     """
-    return success_response({"events": [e.serialize() for e in Event.query.all()]})
+    return success_response({"events": [e.serialize() for e in Event.query.order_by(Event).date.desc().all()]})
     
 @app.route("/api/events/", methods=["POST"])
 def create_event():
@@ -147,25 +150,24 @@ def bookmark_event(event_id, user_id):
         return failure_response("Invalid input.", 400)
     return success_response(user.serialize())
 
-@app.route("/api/category/", methods=["POST"]")
+@app.route("/api/category/", methods=["POST"])
 def create_category():
     """
     CHECKOVER Endpoint for creating a category
     """
     body = json.loads(request.data)
-    name = body.get("name")
+    description = body.get("description")
     color = body.get("color")
-
-    category = Category.query.filter_by(color=color).first()
-    if category is None:
-        category = Category(name=name, color=color)
-    event.categories.append(category)
+    category = Category(description=description, color=color)
+    db.session.add(category)
     db.session.commit()
-    return success_response(event.serialize())
+    return success_response(category.serialize())
 
 @app.route("/api/")
 def get_random_event():
-    pass
+    list = Event.query.all() + Bucket.query.all()
+    random.shuffle(list)
+    return success_response(list[0].serialize())
 
 @app.route("/api/")
 def get_all_bucket():

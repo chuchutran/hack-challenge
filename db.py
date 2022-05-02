@@ -77,7 +77,7 @@ class Event(db.Model):
 
     Many-to-many relationship with Users table
     Many-to-many relationship with Category table
-    One-to-many relationship with Image table
+    One-to-one relationship with Image table
     """
 
     __tablename__ = "events"
@@ -114,6 +114,8 @@ class Event(db.Model):
             "description": self.description,
             "image_id": self.image_id,
             "categories": [c.simple_serialize() for c in self.categories], 
+            # for Tiffany when she's trying to show randomized event (ex .if she is looking to display location it knows 
+            # that only current events have location so that it does not try to display a location for a bucket event and crash)
             "type": "event"
         }
 
@@ -150,7 +152,7 @@ class Bucket(db.Model):
         self.description = kwargs.get("description")
         self.status = kwargs.get("status")
     
-    def simple_serialize(self):
+    def serialize(self):
         """
         Serializes a Bucket object 
         """
@@ -203,7 +205,7 @@ class Category(db.Model):
         }
 
 
-EXTENSTIONS = ["png", "gif", "jpg", "jpeg"]
+EXTENSIONS = ["png", "gif", "jpg", "jpeg"]
 BASE_DIR = os.getcwd()
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 S3_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com" 
@@ -250,7 +252,7 @@ class Image(db.Model):
 
             #only accepts supported file types
             if ext not in EXTENSIONS:
-                raise Exception(f"Unsupportted file type: {ext}")
+                raise Exception(f"Unsupported file type: {ext}")
 
 
             #generate random strong name for file
@@ -302,4 +304,5 @@ class Image(db.Model):
 
         except Exception as e:
             print(f"Error when uploading image: {e}")
+
 

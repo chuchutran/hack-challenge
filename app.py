@@ -5,7 +5,7 @@ from db import Event
 from db import User 
 from db import Category
 from db import Bucket
-from db import Image
+from db import Asset
 
 import datetime
 import random
@@ -16,6 +16,7 @@ from flask import request
 import os
 
 # define db filename 
+
 app = Flask(__name__)
 db_filename = "cms.db"
 
@@ -69,10 +70,11 @@ def create_event():
     image_data = body.get("image_data")
     if image_data is None:
             return failure_response("No base64 image passed in!")
-    image = Image(image_data=image_data)
-    db.session.add(image)
     new_event = Event(title=title, host_name=host_name, date=date, location=location, description=description)
     db.session.add(new_event)
+    db.session.commit()
+    image = Asset(image_data=image_data, event_id=new_event.id)
+    db.session.add(image)
     db.session.commit()
     return success_response(new_event.serialize(), 201)
 
@@ -131,6 +133,7 @@ def bookmark_event(event_id, user_id):
     """
     CHECKOVER Endpoint for adding an event to user's saved events 
     """
+    body = json.loads(request.data)
     event = Event.query.filter_by(id=event_id).first()
     if event is None:
         return failure_response("Event not found!")
@@ -140,10 +143,10 @@ def bookmark_event(event_id, user_id):
         return failure_response("User not found!")
     
     # checks if user is student or instructor 
-    if type == "event":
+    if body.get("type") == "event":
         user.saved_events.append(event)
         db.session.commit()
-    elif type == "bucket":
+    elif body.get("type") == "bucket":
         user.saved_buckets.append(event)
         db.session.commit()
     else:
@@ -163,6 +166,7 @@ def create_category():
     db.session.commit()
     return success_response(category.serialize())
 
+### JAC
 @app.route("/api/")
 def get_random_event():
     list = Event.query.all() + Bucket.query.all()
@@ -171,29 +175,57 @@ def get_random_event():
 
 @app.route("/api/")
 def get_all_bucket():
-    pass
+    """
+    Endpoint for getting all Bucket items
+    """
+    return success_response({"buckets": [b.serialize() for b in Bucket.query.all()]})
+    
 
-@app.route("/api/")
+@app.route("/api/<int:user_id>/")
 def get_all_bookmark_current():
+    """
+    Endpoint for getting all bookmarked current events
+    """
+    # return success_response(user.serialize_saved_buckets()) 
     pass
+    
 
 @app.route("/api/")
 def get_all_bookmark_bucket():
+    """
+    Endpoint for getting all bookmarked bucket events
+    """
+    # return success_response(user.serialize_saved_current()) 
     pass
 
-@app.route("/api/")
-def delete_bookmark_current():
-    pass
+@app.route("/api/user/<int:user_id>/bookmark/bucket/<int:bucket_id>", methods=["DELETE"])
+def delete_bookmark_bucket(user_id, bucket_id):
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    for bucket in user.saved_buckets:
+        if bucket.id==bucket_id:
+            user.saved_buckets.delete(bucket)
+    db.session.commit()
+    return success_response(bucket.simple_serialize(), 200)
 
-@app.route("/api/")
-def delete_bookmark_bucket():
-    pass
+@app.route("/api//<int:user_id>/bookmark/event/<int:event_id>", methods=["DELETE"])
+def delete_bookmark_current(user_id, event_id):
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    for event in user.saved_events:
+        if event.id==event_id:
+            user.saved_events.delete(event)
+    db.session.commit()
+    return success_response(event.simple_serialize(), 200)
+    
 
 
 
 # -- CATEGORIES ROUTES ------------------------------------------------------
 @app.route("/api/events/<int:event_id>/category/<int:category_id>", methods=["POST"])
-def assign_category(event_id):
+def assign_category(event_id, category_id):
     """
     CHECKOVER Endpoint for assigning a category to a event by id
     """

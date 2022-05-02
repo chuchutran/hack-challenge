@@ -1,5 +1,5 @@
 .env
 __pycache__
 venv
-.dockerignore
+cms.db
 .DS_Store

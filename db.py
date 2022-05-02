@@ -49,6 +49,11 @@ class User(db.Model):
     password = db.Column(db.String, nullable=False)
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
+
+    #session
+    session_token = db.Column(db.String, nullable=True, unique=True)
+    session_expiration = db.Column(db.DateTime, nullable=True)
+    update_token = db.Column(db.String, nullable=True, unique=True)
    
     def _init_(self, **kwargs):
         """
@@ -70,6 +75,22 @@ class User(db.Model):
             "saved_buckets": [b.simple_serialize() for b in self.saved_buckets]
         }
 
+    def serialize_saved_buckets(self):
+        """
+        serialize only saved buckets from user
+        """
+        return{
+            "saved_buckets": [b.simple_serialize() for b in self.saved_buckets]
+        }
+    
+    def serialize_saved_current(self):
+        """
+        serialize only saved buckets from user
+        """
+        return{
+            "saved_current": [e.simple_serialize() for e in self.saved_events]
+        }
+
     
 class Event(db.Model):
     """
@@ -77,7 +98,7 @@ class Event(db.Model):
 
     Many-to-many relationship with Users table
     Many-to-many relationship with Category table
-    One-to-one relationship with Image table
+    One-to-one relationship with Asset table
     """
 
     __tablename__ = "events"
@@ -87,8 +108,7 @@ class Event(db.Model):
     date = db.Column(db.Integer, nullable=False)
     location = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=False)
-    image_id = db.Column(db.String, db.ForeignKey("image.id"), nullable=False)
-    categories = db.relationship("Category", secondary=category_association_table, back_populates="event")
+    categories = db.relationship("Category", secondary=category_association_table, back_populates="events")
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
 
     def _init_(self, **kwargs):
@@ -100,7 +120,6 @@ class Event(db.Model):
         self.date = kwargs.get("date")
         self.location = kwargs.get("location")
         self.description = kwargs.get("description")
-        self.image_id = kwargs.get("image_id")
     
     def serialize(self):
         """
@@ -112,7 +131,6 @@ class Event(db.Model):
             "date": self.date,
             "location": self.location,
             "description": self.description,
-            "image_id": self.image_id,
             "categories": [c.simple_serialize() for c in self.categories], 
             # for Tiffany when she's trying to show randomized event (ex .if she is looking to display location it knows 
             # that only current events have location so that it does not try to display a location for a bucket event and crash)
@@ -204,36 +222,46 @@ class Category(db.Model):
             "color": self.color
         }
 
+# class Token(db.Model):
+#     """
+#     Token Model
+
+#     one to one relationship with User
+#     """
+
+
 
 EXTENSIONS = ["png", "gif", "jpg", "jpeg"]
 BASE_DIR = os.getcwd()
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 S3_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com" 
 
-class Image(db.Model):
+class Asset(db.Model):
     """
-    Image Model
+    Asset Model
 
     Has a one-to-one relationship with Event table
     """
-    __tablename__ = "images"
+    __tablename__ = "assets"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     base_url = db.Column(db.String, nullable=True)
     salt =  db.Column(db.String, nullable=False)
-    extention =  db.Column(db.String, nullable=False)
+    extension =  db.Column(db.String, nullable=False)
     width = db.Column(db.Integer, nullable=False)
     height = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
 
     def __init__(self,**kwargs):
         """
-        Initializes an Image object/entry
+        Initializes an Asset object/entry
         """
+        self.event_id = kwargs.get("event_id")
         self.create(kwargs.get("image_data"))
 
     def serialize(self):
         """
-        Serialize Image object
+        Serialize Asset object
         """
         return{
             "url": f"{self.base_url}/{self.salt}.{self.extension}",
@@ -266,14 +294,14 @@ class Image(db.Model):
             #decode the image and upload to aws
             #remove header of base64 string
             img_str = re.sub("^data:image/.+;base64,", "", image_data)
-            img_data = base64.b63decode(img_str)
+            img_data = base64.b64decode(img_str)
             img = Image.open(BytesIO(img_data))
 
             self.base_url = S3_BASE_URL
             self.salt = salt
             self.extension = ext
             self.width = img.width
-            self.height = img.length
+            self.height = img.height
             self.created_at = datetime.datetime.now()
 
             img_filename = f"{self.salt}.{self.extension}"
@@ -290,7 +318,7 @@ class Image(db.Model):
             #save image temporarily on server
             img_temploc = f"{BASE_DIR}/{img_filename}"
             img.save(img_temploc)
-
+            
             s3_client = boto3.client("s3")
             s3_client.upload_file(img_temploc, S3_BUCKET_NAME, img_filename)
 

@@ -58,6 +58,7 @@ class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
     date = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.String, nullable=False)
     categories = db.relationship("Category", secondary=category_association_table, back_populates="event")
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
 

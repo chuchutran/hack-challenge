@@ -105,10 +105,10 @@ def get_specific_user(user_id):
         return failure_response("User not found!")
     return success_response(user.serialize())
 
-@app.route("/api/events/<int:event_id>/add/", methods=["POST"])
-def add_event(event_id, user_id):
+@app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["POST"])
+def bookmark_event(event_id, user_id):
     """
-    Endpoint for adding an event to user's saved events 
+    WRONG  Endpoint for adding an event to user's saved events 
     """
     event = Event.query.filter_by(id=event_id).first()
     if event is None:
@@ -116,7 +116,6 @@ def add_event(event_id, user_id):
     # process request body if course IS found 
     body = json.loads(request.data)
     event_id = body.get("event_id")
-    type = body.get("type")
 
     # checks if user exist
     user = User.query.filter_by(id=user_id).first()
@@ -134,12 +133,41 @@ def add_event(event_id, user_id):
         return failure_response("Invalid input.", 400)
     return success_response(course.serialize())
 
+@app.route("/api/")
+def create_category():
+    pass
+
+@app.route("/api/")
+def get_random_event():
+    pass
+
+@app.route("/api/")
+def get_all_bucket():
+    pass
+
+@app.route("/api/")
+def get_all_bookmark_current():
+    pass
+
+@app.route("/api/")
+def get_all_bookmark_bucket():
+    pass
+
+@app.route("/api/")
+def delete_bookmark_current():
+    pass
+
+@app.route("/api/")
+def delete_bookmark_bucket():
+    pass
+
+
 
 # -- CATEGORIES ROUTES ------------------------------------------------------
 @app.route("/api/events/<int:event_id>/category/", methods=["POST"])
 def assign_category(event_id):
     """
-    Endpoint for assigning a category to a event by id
+    WRONG Endpoint for assigning a category to a event by id
     """
     event = Event.query.filter_by(id=event_id).first()
     if event is None:

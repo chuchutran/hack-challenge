@@ -4,11 +4,16 @@ from db import db
 from db import Event
 from db import User 
 from db import Category
+from db import Bucket
+from db import Asset
 
 from flask import Flask
 from flask import request 
 
+import os
+
 # define db filename 
+
 app = Flask(__name__)
 db_filename = "cms.db"
 
@@ -34,31 +39,46 @@ def failure_response(message, code=404):
 @app.route("/api/events/")
 def get_all_events():
     """
-    Endpoint for getting all events
+    CHECKOVER Endpoint for getting all events
     """
     return success_response({"events": [e.serialize() for e in Event.query.all()]})
     
 @app.route("/api/events/", methods=["POST"])
 def create_event():
     """
-    Endpoint for creating a course
+    CHECKOVER Endpoint for creating a event
     """
     body = json.loads(request.data)
-    name = body.get("name")
+    title = body.get("title")
+    if title is None:
+        return failure_response("Please put something for name of event", 400)
+    host_name = body.get("host_name")
+    if host_name is None:
+        return failure_response("Please put something for host name", 400)
     date = body.get("date")
     if date is None:
         return failure_response("Please put something for date", 400) 
-    if name is None:
-        return failure_response("Please put something for name of event", 400)
-    new_event = Event(name=name, date=date)
+    location = body.get("location")
+    if location is None:
+        return failure_response("Please put something for location", 400) 
+    description = body.get("description")
+    if description is None:
+        return failure_response("Please put something for the description", 400) 
+    image_data = body.get("image_data")
+    if image_data is None:
+            return failure_response("No base64 image passed in!")
+    new_event = Event(title=title, host_name=host_name, date=date, location=location, description=description)
     db.session.add(new_event)
+    db.session.commit()
+    image = Asset(image_data=image_data, event_id=new_event.id)
+    db.session.add(image)
     db.session.commit()
     return success_response(new_event.serialize(), 201)
 
 @app.route("/api/events/<int:event_id>/")
 def get_specific_event(event_id):
     """
-    Endpoint for getting a event by id 
+    CHECKOVER Endpoint for getting a event by id 
     """
     event= Event.query.filter_by(id=event_id).first()
     if event is None:
@@ -68,7 +88,7 @@ def get_specific_event(event_id):
 @app.route("/api/events/<int:event_id>/", methods=["DELETE"])
 def delete_event(event_id):
     """
-    Endpoint for deleting an event by id
+    CHECKOVER Endpoint for deleting an event by id
     """
     event = Event.query.filter_by(id=event_id).first()
     if event is None:
@@ -81,7 +101,7 @@ def delete_event(event_id):
 @app.route("/api/users/", methods=["POST"])
 def create_user():
     """
-    Endpoint for creating a user
+    CHECKOVER Endpoint for creating a user
     """
     body = json.loads(request.data)
     name=body.get("name")
@@ -98,7 +118,7 @@ def create_user():
 @app.route("/api/users/<int:user_id>/")
 def get_specific_user(user_id):
     """
-    Endpoint for getting user by id 
+    CHECKOVER Endpoint for getting user by id 
     """
     user = User.query.filter_by(id=user_id).first()
     if user is None:
@@ -108,66 +128,104 @@ def get_specific_user(user_id):
 @app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["POST"])
 def bookmark_event(event_id, user_id):
     """
-    WRONG  Endpoint for adding an event to user's saved events 
+    CHECKOVER Endpoint for adding an event to user's saved events 
     """
+    body = json.loads(request.data)
     event = Event.query.filter_by(id=event_id).first()
     if event is None:
         return failure_response("Event not found!")
-    # process request body if course IS found 
-    body = json.loads(request.data)
-    event_id = body.get("event_id")
-
     # checks if user exist
     user = User.query.filter_by(id=user_id).first()
     if user is None:
         return failure_response("User not found!")
     
     # checks if user is student or instructor 
-    if type == "student":
-        course.students.append(user)
+    if body.get("type") == "event":
+        user.saved_events.append(event)
         db.session.commit()
-    elif type == "instructor":
-        course.instructors.append(user)
+    elif body.get("type") == "bucket":
+        user.saved_buckets.append(event)
         db.session.commit()
     else:
         return failure_response("Invalid input.", 400)
-    return success_response(course.serialize())
+    return success_response(user.serialize())
 
-@app.route("/api/")
+@app.route("/api/category/", methods=["POST"])
 def create_category():
-    pass
+    """
+    CHECKOVER Endpoint for creating a category
+    """
+    body = json.loads(request.data)
+    name = body.get("name")
+    color = body.get("color")
 
+    category = Category.query.filter_by(color=color).first()
+    if category is None:
+        category = Category(name=name, color=color)
+    event.categories.append(category)
+    db.session.commit()
+    return success_response(event.serialize())
+
+### JAC
 @app.route("/api/")
 def get_random_event():
     pass
 
 @app.route("/api/")
 def get_all_bucket():
-    pass
+    """
+    Endpoint for getting all Bucket items
+    """
+    return success_response({"buckets": [b.serialize() for b in Bucket.query.all()]})
+    
 
-@app.route("/api/")
+@app.route("/api/<int:user_id>/")
 def get_all_bookmark_current():
+    """
+    Endpoint for getting all bookmarked current events
+    """
+    # return success_response(user.serialize_saved_buckets()) 
     pass
+    
 
 @app.route("/api/")
 def get_all_bookmark_bucket():
+    """
+    Endpoint for getting all bookmarked bucket events
+    """
+    # return success_response(user.serialize_saved_current()) 
     pass
 
-@app.route("/api/")
-def delete_bookmark_current():
-    pass
+@app.route("/api/user/<int:user_id>/bookmark/bucket/<int:bucket_id>", methods=["DELETE"])
+def delete_bookmark_bucket(user_id, bucket_id):
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    for bucket in user.saved_buckets:
+        if bucket.id==bucket_id:
+            user.saved_buckets.delete(bucket)
+    db.session.commit()
+    return success_response(bucket.simple_serialize(), 200)
 
-@app.route("/api/")
-def delete_bookmark_bucket():
-    pass
+@app.route("/api//<int:user_id>/bookmark/event/<int:event_id>", methods=["DELETE"])
+def delete_bookmark_current(user_id, event_id):
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    for event in user.saved_events:
+        if event.id==event_id:
+            user.saved_events.delete(event)
+    db.session.commit()
+    return success_response(event.simple_serialize(), 200)
+    
 
 
 
 # -- CATEGORIES ROUTES ------------------------------------------------------
-@app.route("/api/events/<int:event_id>/category/", methods=["POST"])
-def assign_category(event_id):
+@app.route("/api/events/<int:event_id>/category/<int:category_id>", methods=["POST"])
+def assign_category(event_id, category_id):
     """
-    WRONG Endpoint for assigning a category to a event by id
+    CHECKOVER Endpoint for assigning a category to a event by id
     """
     event = Event.query.filter_by(id=event_id).first()
     if event is None:
@@ -178,9 +236,9 @@ def assign_category(event_id):
     color = body.get("color")
     # create new Category object if it doesn't exist,
     # otherwise assign task to existing category 
-    category = Category.query.filter_by(color=color).first()
+    category = Category.query.filter_by(id=category_id).first()
     if category is None:
-        category = Category(name=name, color=color)
+        return failure_response("Category not found!")
     event.categories.append(category)
     db.session.commit()
     return success_response(event.serialize())

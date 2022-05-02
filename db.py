@@ -78,7 +78,8 @@ class Event(db.Model):
             "id": self.id,
             "name": self.name,
             "date": self.date,
-            "categories": [c.simple_serialize() for c in self.assignments]
+            "categories": [c.simple_serialize() for c in self.assignments], 
+            "type": "event"
         }
     
         
@@ -110,7 +111,8 @@ class Bucket(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "description": self.description
+            "description": self.description, 
+            "type" = "bucket"
         }
 
 class Category(db.Model):

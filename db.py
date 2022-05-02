@@ -12,6 +12,9 @@ import random
 import re
 import string
 
+import hashlib
+import bcrypt
+
 db = SQLAlchemy()
 
 category_association_table = db.Table(
@@ -42,19 +45,30 @@ class User(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
-    email = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, nullable=False, unique=True)
     password = db.Column(db.String, nullable=False)
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
    
     def _init_(self, **kwargs):
         """
-        Initialize Course object/entry
+        Initialize User object/entry
         """
         self.name = kwargs.get("name")
         self.email = kwargs.get("email")
-        self.password = kwargs.get("password")
+        self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
 
+    def serialize(self):
+        """
+        Serializes User object
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "saved_events": [e.simple_serialize() for e in self.saved_events], 
+            "saved_buckets": [b.simple_serialize() for b in self.saved_buckets]
+        }
 
     
 class Event(db.Model):
@@ -63,36 +77,57 @@ class Event(db.Model):
 
     Many-to-many relationship with Users table
     Many-to-many relationship with Category table
+    One-to-many relationship with Image table
     """
 
     __tablename__ = "events"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String, nullable=False)
+    title = db.Column(db.String, nullable=False)
+    host_name = db.Column(db.String, nullable=False)
     date = db.Column(db.Integer, nullable=False)
+    location = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=False)
+    image_id = db.Column(db.String, db.ForeignKey("image.id"), nullable=False)
     categories = db.relationship("Category", secondary=category_association_table, back_populates="event")
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
 
     def _init_(self, **kwargs):
         """
-        Initialize Course object
+        Initialize Event object
         """
-        self.name = kwargs.get("name")
+        self.title = kwargs.get("title")
+        self.host_name = kwargs.get("host_name")
         self.date = kwargs.get("date")
-        self.categories = kwargs.get("categories")
+        self.location = kwargs.get("location")
+        self.description = kwargs.get("description")
+        self.image_id = kwargs.get("image_id")
     
     def serialize(self):
         """
-        Serializes Course object
+        Serializes Event object
         """
         return {
             "id": self.id,
-            "name": self.name,
+            "title": self.title,
             "date": self.date,
-            "categories": [c.simple_serialize() for c in self.assignments], 
+            "location": self.location,
+            "description": self.description,
+            "image_id": self.image_id,
+            "categories": [c.simple_serialize() for c in self.categories], 
             "type": "event"
         }
-    
+
+    def simple_serialize(self):
+        """
+        Simple serializes Event object
+        """
+        return {
+            "id": self.id,
+            "title": self.title,
+            "date": self.date,
+            "location": self.location,
+            "description": self.description
+        }
         
 
 class Bucket(db.Model):
@@ -104,16 +139,16 @@ class Bucket(db.Model):
 
     __tablename__ = "buckets"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=True)
+    status = db.Column(db.Boolean, default=False)
     users_saved = db.relationship("User", secondary=saved_buckets_association_table, back_populates="saved_buckets")
 
     def _init_(self, **kwargs):
         """
         Initialize Bucket object
         """
-        self.name = kwargs.get("name")
         self.description = kwargs.get("description")
+        self.status = kwargs.get("status")
     
     def simple_serialize(self):
         """
@@ -121,9 +156,9 @@ class Bucket(db.Model):
         """
         return {
             "id": self.id,
-            "name": self.name,
             "description": self.description, 
-            "type" = "bucket"
+            "status": self.status,
+            "type": "bucket"
         }
 
 class Category(db.Model):
@@ -135,15 +170,15 @@ class Category(db.Model):
 
     __tablename__ = "categories"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.String, nullable=False)
     color = db.Column(db.String, nullable=False)
     events = db.relationship("Event", secondary=category_association_table, back_populates="categories")
-    
+
     def _init_(self, **kwargs):
         """
         Initialize Category object/entry
         """
-        self.name = kwargs.get("name")
+        self.description = kwargs.get("description")
         self.color = kwargs.get("color")
 
     def serialize(self):
@@ -152,9 +187,9 @@ class Category(db.Model):
         """
         return {
             "id": self.id,
-            "name": self.name,
+            "description": self.description,
             "color": self.color,
-            "events": [e.serialize() for e in self.events]
+            "events": [e.simple_serialize() for e in self.events]
         }
 
     def simple_serialize(self):
@@ -163,24 +198,23 @@ class Category(db.Model):
         """
         return {
             "id": self.id,
-            "name": self.name,
+            "description": self.description,
             "color": self.color
         }
 
-'''
-IMAGES
-'''
 
 EXTENSTIONS = ["png", "gif", "jpg", "jpeg"]
 BASE_DIR = os.getcwd()
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 S3_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com" 
 
-class Asset(db.Model):
-    '''
-    Asset Model
-    '''
-    __tablename__ = "assets"
+class Image(db.Model):
+    """
+    Image Model
+
+    Has a one-to-one relationship with Event table
+    """
+    __tablename__ = "images"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     base_url = db.Column(db.String, nullable=True)
     salt =  db.Column(db.String, nullable=False)
@@ -190,27 +224,27 @@ class Asset(db.Model):
     created_at = db.Column(db.DateTime, nullable=False)
 
     def __init__(self,**kwargs):
-        '''
-        Initializes an Asset object
-        '''
+        """
+        Initializes an Image object/entry
+        """
         self.create(kwargs.get("image_data"))
 
     def serialize(self):
-        '''
-        serialize asset object
-        '''
+        """
+        Serialize Image object
+        """
         return{
             "url": f"{self.base_url}/{self.salt}.{self.extension}",
             "created_at":str(self.created_at)
         }
 
     def create(self, image_data):
-        '''
+        """
         Given an image in base64 form, it
         1. Rejects the image is the filetype is not supported
         2. Generates a random string for the image file name
         3. Decodes the image and attempts to upload it to AWS
-        '''
+        """
         try:
             ext = guess_extension(guess_type(image_data)[0])[1:]
 
@@ -247,9 +281,9 @@ class Asset(db.Model):
             print(f"Error when creating image: {e}")
 
     def upload(self, img, img_filename):
-        '''
+        """
         Attempt to upload the image to the specified S3 bucket
-        '''
+        """
         try:
             #save image temporarily on server
             img_temploc = f"{BASE_DIR}/{img_filename}"

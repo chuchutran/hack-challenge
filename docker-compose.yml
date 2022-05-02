@@ -1,0 +1,8 @@
+versions: "3"
+
+services:
+  demo:
+    image: kellytran00/hackChallenge
+    env_file: .env
+    ports:
+      - "5000:5000"

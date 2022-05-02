@@ -101,17 +101,6 @@ class Bucket(db.Model):
         """
         self.name = kwargs.get("name")
         self.description = kwargs.get("description")
-
-    def serialize(self):
-        """
-        Serializes a Bucket object 
-        """
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "users_saved": [s.serialize() for s in self.users_saved]
-        } 
     
     def simple_serialize(self):
         """
@@ -123,8 +112,6 @@ class Bucket(db.Model):
             "description": self.description
         }
 
-
-    `
 class Category(db.Model):
     """
     Category model

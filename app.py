@@ -37,8 +37,39 @@ def success_response(data, code=200):
 def failure_response(message, code=404):
     return json.dumps({"error": message}), code
 
-# -- EVENT ROUTES ------------------------------------------------------
 
+
+# -- USER ROUTES ------------------------------------------------------
+@app.route("/api/users/", methods=["POST"])
+def create_user():
+    """
+    Endpoint for creating a user
+    """
+    body = json.loads(request.data)
+    name=body.get("name")
+    email=body.get("email")
+    if name is None:
+        return failure_response("Please enter something for name", 400)
+    if email is None:
+        return failure_response("Please enter something for email", 400)
+    new_user = User(name=name, email=email)
+    db.session.add(new_user)
+    db.session.commit()
+    return success_response(new_user.serialize(), 201)
+
+@app.route("/api/users/<int:user_id>/")
+def get_specific_user(user_id):
+    """
+    Endpoint for getting user by id 
+    """
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    return success_response(user.serialize())
+
+
+
+# -- EVENT ROUTES ------------------------------------------------------
 @app.route("/api/events/")
 def get_all_events():
     """
@@ -72,6 +103,7 @@ def create_event():
             return failure_response("No base64 image passed in!")
     new_event = Event(title=title, host_name=host_name, date=date, location=location, description=description)
     db.session.add(new_event)
+    db.session.commit()
     image = Asset(image_data=image_data, event_id=new_event.id)
     db.session.add(image)
     db.session.commit()
@@ -99,59 +131,102 @@ def delete_event(event_id):
     db.session.commit()
     return success_response(event.serialize())
 
-# -- USER ROUTES ------------------------------------------------------
-@app.route("/api/users/", methods=["POST"])
-def create_user():
+# make separate bookmark routes for event and buckets? and have tiff implement some logic on frontend? 
+@app.route("/api/users/<int:user_id>/events/<int:event_id>/buckets/<int:bucket_id>/bookmark/", methods=["POST"])
+def bookmark_event(event_id, user_id, bucket_id):
     """
-    CHECKOVER Endpoint for creating a user
+    CHECKOVER! Endpoint for adding an event to user's saved events 
     """
-    body = json.loads(request.data)
-    name=body.get("name")
-    email=body.get("email")
-    if name is None:
-        return failure_response("Please enter something for name", 400)
-    if email is None:
-        return failure_response("Please enter something for email", 400)
-    new_user = User(name=name, email=email)
-    db.session.add(new_user)
-    db.session.commit()
-    return success_response(new_user.serialize(), 201)
-
-@app.route("/api/users/<int:user_id>/")
-def get_specific_user(user_id):
-    """
-    CHECKOVER Endpoint for getting user by id 
-    """
-    user = User.query.filter_by(id=user_id).first()
-    if user is None:
-        return failure_response("User not found!")
-    return success_response(user.serialize())
-
-@app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["POST"])
-def bookmark_event(event_id, user_id):
-    """
-    CHECKOVER Endpoint for adding an event to user's saved events 
-    """
-    body = json.loads(request.data)
-    event = Event.query.filter_by(id=event_id).first()
-    if event is None:
-        return failure_response("Event not found!")
     # checks if user exist
     user = User.query.filter_by(id=user_id).first()
     if user is None:
         return failure_response("User not found!")
     
+    body = json.loads(request.data)
     # checks if user is student or instructor 
     if body.get("type") == "event":
+        event = Event.query.filter_by(id=event_id).first()
+        if event is None:
+            return failure_response("Event not found!")
         user.saved_events.append(event)
         db.session.commit()
     elif body.get("type") == "bucket":
+        bucket = Bucket.query.filter_by(id=bucket_id).first()
+        if bucket is None:
+            return failure_response("Bucketlist activity not found!")
         user.saved_buckets.append(event)
         db.session.commit()
     else:
         return failure_response("Invalid input.", 400)
     return success_response(user.serialize())
 
+@app.route("/api/events/random/")
+def get_random_event():
+    """
+    Endpoint for getting a random event
+    """
+    list = Event.query.all() + Bucket.query.all()
+    random.shuffle(list)
+    return success_response(list[0].serialize())
+
+@app.route("/api/<int:user_id>/")
+def get_all_bookmark_current():
+    """
+    CHECKOVER Endpoint for getting all bookmarked current events
+    """
+    return success_response(User.serialize_saved_buckets()) 
+
+@app.route("/api/<int:user_id>/bookmark/event/<int:event_id>", methods=["DELETE"])
+def delete_bookmark_current(user_id, event_id):
+    """
+    CHECKOVER Endpoint for deleting saved current event
+    """
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    for event in user.saved_events:
+        if event.id==event_id:
+            user.saved_events.delete(event)
+    db.session.commit()
+    return success_response(event.simple_serialize(), 200)
+
+
+
+# -- BUCKET ROUTES ------------------------------------------------------
+### JAC
+@app.route("/api/")
+def get_all_bucket():
+    """
+    CHECKOVER Endpoint for getting all Bucket items
+    """
+    return success_response({"buckets": [b.serialize() for b in Bucket.query.all()]})
+    
+
+@app.route("/api/")
+def get_all_bookmark_bucket():
+    """
+    CHECKOVER Endpoint for getting all bookmarked bucket events
+    """
+    return success_response(User.serialize_saved_current()) 
+    
+
+@app.route("/api/user/<int:user_id>/bookmark/bucket/<int:bucket_id>", methods=["DELETE"])
+def delete_bookmark_bucket(user_id, bucket_id):
+    """
+    CHECKOVER Endpoint for deleting saved bucket
+    """
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    for bucket in user.saved_buckets:
+        if bucket.id==bucket_id:
+            user.saved_buckets.delete(bucket)
+    db.session.commit()
+    return success_response(bucket.simple_serialize(), 200)
+
+
+
+# -- CATEGORIES ROUTES ------------------------------------------------------
 @app.route("/api/category/", methods=["POST"])
 def create_category():
     """
@@ -164,70 +239,7 @@ def create_category():
     db.session.add(category)
     db.session.commit()
     return success_response(category.serialize())
-
-### JAC
-@app.route("/api/")
-def get_random_event():
-    list = Event.query.all() + Bucket.query.all()
-    random.shuffle(list)
-    return success_response(list[0].serialize())
-
-@app.route("/api/")
-def get_all_bucket():
-    """
-    Endpoint for getting all Bucket items
-    """
-    return success_response({"buckets": [b.serialize() for b in Bucket.query.all()]})
     
-
-@app.route("/api/<int:user_id>/")
-def get_all_bookmark_current():
-    """
-    Endpoint for getting all bookmarked current events
-    """
-    return success_response(User.serialize_saved_buckets()) 
-    
-
-@app.route("/api/")
-def get_all_bookmark_bucket():
-    """
-    Endpoint for getting all bookmarked bucket events
-    """
-    return success_response(User.serialize_saved_current()) 
-    
-
-@app.route("/api/user/<int:user_id>/bookmark/bucket/<int:bucket_id>", methods=["DELETE"])
-def delete_bookmark_bucket(user_id, bucket_id):
-    """
-    Endpoint for deleting saved bucket
-    """
-    user = User.query.filter_by(id=user_id).first()
-    if user is None:
-        return failure_response("User not found!")
-    for bucket in user.saved_buckets:
-        if bucket.id==bucket_id:
-            user.saved_buckets.delete(bucket)
-    db.session.commit()
-    return success_response(bucket.simple_serialize(), 200)
-
-@app.route("/api//<int:user_id>/bookmark/event/<int:event_id>", methods=["DELETE"])
-def delete_bookmark_current(user_id, event_id):
-    """
-    Endpoint for deleting saved current event
-    """
-    user = User.query.filter_by(id=user_id).first()
-    if user is None:
-        return failure_response("User not found!")
-    for event in user.saved_events:
-        if event.id==event_id:
-            user.saved_events.delete(event)
-    db.session.commit()
-    return success_response(event.simple_serialize(), 200)
-    
-
-
-
-# -- CATEGORIES ROUTES ------------------------------------------------------
 @app.route("/api/events/<int:event_id>/category/<int:category_id>", methods=["POST"])
 def assign_category(event_id, category_id):
     """

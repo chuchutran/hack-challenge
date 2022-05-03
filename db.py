@@ -41,19 +41,18 @@ class User(db.Model):
 
     Many-to-many relationship with Events table
     """
-
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True)
-    password = db.Column(db.String, nullable=False)
+    # password = db.Column(db.String, nullable=False)
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
 
     #session
-    session_token = db.Column(db.String, nullable=True, unique=True)
-    session_expiration = db.Column(db.DateTime, nullable=True)
-    update_token = db.Column(db.String, nullable=True, unique=True)
+    # session_token = db.Column(db.String, nullable=True, unique=True)
+    # session_expiration = db.Column(db.DateTime, nullable=True)
+    # update_token = db.Column(db.String, nullable=True, unique=True)
    
     def _init_(self, **kwargs):
         """
@@ -61,7 +60,7 @@ class User(db.Model):
         """
         self.name = kwargs.get("name")
         self.email = kwargs.get("email")
-        self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
+        # self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
 
     def serialize(self):
         """

@@ -35,6 +35,12 @@ saved_buckets_association_table = db.Table(
     db.Column("users_saved_id", db.Integer, db.ForeignKey("buckets.id"))
     )
 
+reminder_events_association_table = db.Table(
+    "association_reminder_events",
+    db.Column("reminder_events_id", db.Integer, db.ForeignKey("users.id")),
+    db.Column("users_reminder_id", db.Integer, db.ForeignKey("events.id"))
+    )
+
 class User(db.Model):
     """
     User model 
@@ -45,9 +51,11 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True)
-    # password = db.Column(db.String, nullable=False)
+    phone_number = db.Column(db.Integer, nullable=False)
+
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
+    reminder_events = db.relationship("Event", secondary=reminder_events_association_table, back_populates="users_saved")
 
     #session
     # session_token = db.Column(db.String, nullable=True, unique=True)
@@ -60,6 +68,7 @@ class User(db.Model):
         """
         self.name = kwargs.get("name")
         self.email = kwargs.get("email")
+        self.phone_number = kwargs.get("phone_number")
         # self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
 
     def serialize(self):
@@ -70,24 +79,26 @@ class User(db.Model):
             "id": self.id,
             "name": self.name,
             "email": self.email,
-            "saved_events": [e.simple_serialize() for e in self.saved_events], 
-            "saved_buckets": [b.simple_serialize() for b in self.saved_buckets]
+            "phone_number": self.phone_number,
+            "saved_events": [e.serialize() for e in self.saved_events], 
+            "saved_buckets": [b.serialize() for b in self.saved_buckets],
+            "reminder_events": [r.serialize() for r in self.reminder_events]
         }
 
     def serialize_saved_buckets(self):
         """
-        serialize only saved buckets from user
+        Serialize only saved buckets from user
         """
         return{
-            "saved_buckets": [b.simple_serialize() for b in self.saved_buckets]
+            "saved_buckets": [b.serialize() for b in self.saved_buckets]
         }
     
-    def serialize_saved_current(self):
+    def serialize_saved_events(self):
         """
-        serialize only saved buckets from user
+        Serialize only saved buckets from user
         """
         return{
-            "saved_current": [e.simple_serialize() for e in self.saved_events]
+            "saved_events": [e.simple_serialize() for e in self.saved_events]
         }
 
     
@@ -105,10 +116,13 @@ class Event(db.Model):
     title = db.Column(db.String, nullable=False)
     host_name = db.Column(db.String, nullable=False)
     date = db.Column(db.Integer, nullable=False)
+    time = db.Column(db.Integer, nullable=False)
     location = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=False)
+    
     categories = db.relationship("Category", secondary=category_association_table, back_populates="events")
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
+    users_reminder = db.relationship("User", secondary=reminder_events_association_table, back_populates="reminder_events")
 
     def _init_(self, **kwargs):
         """
@@ -117,6 +131,7 @@ class Event(db.Model):
         self.title = kwargs.get("title")
         self.host_name = kwargs.get("host_name")
         self.date = kwargs.get("date")
+        self.time = kwargs.get("time")
         self.location = kwargs.get("location")
         self.description = kwargs.get("description")
     
@@ -128,6 +143,7 @@ class Event(db.Model):
             "id": self.id,
             "title": self.title,
             "date": self.date,
+            "time": self.time,
             "location": self.location,
             "description": self.description,
             "categories": [c.simple_serialize() for c in self.categories], 
@@ -144,6 +160,7 @@ class Event(db.Model):
             "id": self.id,
             "title": self.title,
             "date": self.date,
+            "time": self.time,
             "location": self.location,
             "description": self.description
         }

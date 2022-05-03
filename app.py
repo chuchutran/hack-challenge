@@ -135,7 +135,7 @@ def delete_event(event_id):
 @app.route("/api/users/<int:user_id>/events/<int:event_id>/buckets/<int:bucket_id>/bookmark/", methods=["POST"])
 def bookmark_event(event_id, user_id, bucket_id):
     """
-    CHECKOVER! Endpoint for adding an event to user's saved events 
+    !!! Endpoint for adding an event to user's saved events 
     """
     # checks if user exist
     user = User.query.filter_by(id=user_id).first()
@@ -169,31 +169,36 @@ def get_random_event():
     random.shuffle(list)
     return success_response(list[0].serialize())
 
-@app.route("/api/<int:user_id>/")
-def get_all_bookmark_current():
+@app.route("/api/users/<int:user_id>/events/bookmark/")
+def get_all_bookmark_current(user_id):
     """
-    CHECKOVER Endpoint for getting all bookmarked current events
-    """
-    return success_response(User.serialize_saved_buckets()) 
-
-@app.route("/api/<int:user_id>/bookmark/event/<int:event_id>", methods=["DELETE"])
-def delete_bookmark_current(user_id, event_id):
-    """
-    CHECKOVER Endpoint for deleting saved current event
+    Endpoint for getting all bookmarked current events
     """
     user = User.query.filter_by(id=user_id).first()
     if user is None:
         return failure_response("User not found!")
+    return success_response(user.serialize_saved_current()) 
+
+@app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["DELETE"])
+def delete_bookmark_current(user_id, event_id):
+    """
+    Endpoint for deleting saved current event
+    """
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    event = Event.query.filter_by(id=event_id).first()
+    if event is None:
+        return failure_response("Event not found!")
     for event in user.saved_events:
         if event.id==event_id:
-            user.saved_events.delete(event)
+            user.saved_events.remove(event)
     db.session.commit()
     return success_response(event.simple_serialize(), 200)
 
 
 
 # -- BUCKET ROUTES ------------------------------------------------------
-### JAC
 @app.route("/api/")
 def get_all_bucket():
     """

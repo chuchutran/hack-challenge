@@ -186,8 +186,7 @@ def get_all_bookmark_current():
     """
     Endpoint for getting all bookmarked current events
     """
-    # return success_response(user.serialize_saved_buckets()) 
-    pass
+    return success_response(User.serialize_saved_buckets()) 
     
 
 @app.route("/api/")
@@ -195,11 +194,14 @@ def get_all_bookmark_bucket():
     """
     Endpoint for getting all bookmarked bucket events
     """
-    # return success_response(user.serialize_saved_current()) 
-    pass
+    return success_response(User.serialize_saved_current()) 
+    
 
 @app.route("/api/user/<int:user_id>/bookmark/bucket/<int:bucket_id>", methods=["DELETE"])
 def delete_bookmark_bucket(user_id, bucket_id):
+    """
+    Endpoint for deleting saved bucket
+    """
     user = User.query.filter_by(id=user_id).first()
     if user is None:
         return failure_response("User not found!")
@@ -211,6 +213,9 @@ def delete_bookmark_bucket(user_id, bucket_id):
 
 @app.route("/api//<int:user_id>/bookmark/event/<int:event_id>", methods=["DELETE"])
 def delete_bookmark_current(user_id, event_id):
+    """
+    Endpoint for deleting saved current event
+    """
     user = User.query.filter_by(id=user_id).first()
     if user is None:
         return failure_response("User not found!")

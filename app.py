@@ -199,33 +199,54 @@ def delete_bookmark_current(user_id, event_id):
 
 
 # -- BUCKET ROUTES ------------------------------------------------------
-@app.route("/api/")
+@app.route("/api/buckets/")
 def get_all_bucket():
     """
-    CHECKOVER Endpoint for getting all Bucket items
+    Endpoint for getting all Bucket items
     """
     return success_response({"buckets": [b.serialize() for b in Bucket.query.all()]})
     
+@app.route("/api/buckets/", methods=["POST"])
+def create_bucket():
+    """
+    Endpoint for creating a bucketlist activity
+    """
+    body = json.loads(request.data)
+    description = body.get("description")
+    if description is None:
+        return failure_response("Please put something for the description", 400)
+    status = body.get("status")
+    if status is None:
+        return failure_response("Please indicate status of bucketlist activity", 400)
+    bucket = Bucket(description=description, status=status)
+    db.session.add(bucket)
+    db.session.commit()
+    return success_response(bucket.serialize(), 201)
 
-@app.route("/api/")
-def get_all_bookmark_bucket():
+@app.route("/api/users/<int:user_id>/buckets/bookmark/")
+def get_all_bookmark_bucket(user_id):
     """
-    CHECKOVER Endpoint for getting all bookmarked bucket events
-    """
-    return success_response(User.serialize_saved_current()) 
-    
-
-@app.route("/api/user/<int:user_id>/bookmark/bucket/<int:bucket_id>", methods=["DELETE"])
-def delete_bookmark_bucket(user_id, bucket_id):
-    """
-    CHECKOVER Endpoint for deleting saved bucket
+    !!! Endpoint for getting all bookmarked bucket events
     """
     user = User.query.filter_by(id=user_id).first()
     if user is None:
         return failure_response("User not found!")
+    return success_response(user.serialize_saved_buckets()) 
+
+@app.route("/api/user/<int:user_id>/bookmark/bucket/<int:bucket_id>", methods=["DELETE"])
+def delete_bookmark_bucket(user_id, bucket_id):
+    """
+    !!! Endpoint for deleting saved bucket
+    """
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    bucket = Bucket.query.filter_by(id=bucket_id).first()
+    if bucket is None:
+        return failure_response("Bucket not found!")
     for bucket in user.saved_buckets:
         if bucket.id==bucket_id:
-            user.saved_buckets.delete(bucket)
+            user.saved_buckets.remove(bucket)
     db.session.commit()
     return success_response(bucket.simple_serialize(), 200)
 
@@ -235,20 +256,34 @@ def delete_bookmark_bucket(user_id, bucket_id):
 @app.route("/api/category/", methods=["POST"])
 def create_category():
     """
-    CHECKOVER Endpoint for creating a category
+    Endpoint for creating a category
     """
     body = json.loads(request.data)
     description = body.get("description")
+    if description is None:
+        return failure_response("Please put something for the description", 400)
     color = body.get("color")
+    if color is None:
+        return failure_response("Please indicate color for the category", 400)
     category = Category(description=description, color=color)
     db.session.add(category)
     db.session.commit()
     return success_response(category.serialize())
     
+@app.route("/api/category/<int:category_id>/events")
+def get_category(category_id):
+    """
+    Endpoint for getting events by category
+    """
+    category = Category.query.filter_by(id=category_id).first()
+    if category is None:
+        return failure_response("Category not found!")
+    return success_response(category.serialize())
+
 @app.route("/api/events/<int:event_id>/category/<int:category_id>", methods=["POST"])
 def assign_category(event_id, category_id):
     """
-    CHECKOVER Endpoint for assigning a category to a event by id
+    UNFINISHED Endpoint for assigning a category to a event by id
     """
     event = Event.query.filter_by(id=event_id).first()
     if event is None:

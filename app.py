@@ -42,14 +42,14 @@ def failure_response(message, code=404):
 @app.route("/api/events/")
 def get_all_events():
     """
-    CHECKOVER Endpoint for getting all events
+    Endpoint for getting all events
     """
-    return success_response({"events": [e.serialize() for e in Event.query.order_by(Event).date.desc().all()]})
+    return success_response({"events": [e.serialize() for e in Event.query.order_by(Event.date.desc())]})
     
 @app.route("/api/events/", methods=["POST"])
 def create_event():
     """
-    CHECKOVER Endpoint for creating a event
+    Endpoint for creating a event
     """
     body = json.loads(request.data)
     title = body.get("title")
@@ -72,7 +72,6 @@ def create_event():
             return failure_response("No base64 image passed in!")
     new_event = Event(title=title, host_name=host_name, date=date, location=location, description=description)
     db.session.add(new_event)
-    db.session.commit()
     image = Asset(image_data=image_data, event_id=new_event.id)
     db.session.add(image)
     db.session.commit()
@@ -81,17 +80,17 @@ def create_event():
 @app.route("/api/events/<int:event_id>/")
 def get_specific_event(event_id):
     """
-    CHECKOVER Endpoint for getting a event by id 
+    Endpoint for getting a event by id 
     """
     event= Event.query.filter_by(id=event_id).first()
     if event is None:
-        return failure_response("Sorry, event was not found")
+        return failure_response("Sorry, event was not found.")
     return success_response(event.serialize())
 
 @app.route("/api/events/<int:event_id>/", methods=["DELETE"])
 def delete_event(event_id):
     """
-    CHECKOVER Endpoint for deleting an event by id
+    Endpoint for deleting an event by id
     """
     event = Event.query.filter_by(id=event_id).first()
     if event is None:

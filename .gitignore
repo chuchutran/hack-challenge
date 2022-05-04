@@ -3,3 +3,4 @@ __pycache__
 venv
 bukethaca.db
 .DS_Store
+.envrc

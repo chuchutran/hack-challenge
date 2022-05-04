@@ -1,5 +1,5 @@
 .env
 __pycache__
 venv
-cms.db
+bukethaca.db
 .DS_Store

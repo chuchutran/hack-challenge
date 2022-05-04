@@ -41,6 +41,12 @@ reminder_events_association_table = db.Table(
     db.Column("users_reminder_id", db.Integer, db.ForeignKey("events.id"))
     )
 
+created_events_association_table = db.Table(
+    "association_created_events",
+    db.Column("created_events_id", db.Integer, db.ForeignKey("users.id")),
+    db.Column("users_created_id", db.Integer, db.ForeignKey("events.id"))
+    )
+
 class User(db.Model):
     """
     User model 
@@ -56,6 +62,7 @@ class User(db.Model):
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
     reminder_events = db.relationship("Event", secondary=reminder_events_association_table, back_populates="users_saved")
+    created_events = db.relationship("Event", secondary=created_events_association_table, back_populates="users_created")
 
     #session
     # session_token = db.Column(db.String, nullable=True, unique=True)
@@ -82,7 +89,8 @@ class User(db.Model):
             "phone_number": self.phone_number,
             "saved_events": [e.serialize() for e in self.saved_events], 
             "saved_buckets": [b.serialize() for b in self.saved_buckets],
-            "reminder_events": [r.serialize() for r in self.reminder_events]
+            "reminder_events": [r.serialize() for r in self.reminder_events],
+            "created_events": [c.serialize() for c in self.created_events]
         }
 
     def serialize_saved_buckets(self):
@@ -101,7 +109,14 @@ class User(db.Model):
             "saved_events": [e.simple_serialize() for e in self.saved_events]
         }
 
-    
+    def serialize_created_events(self):
+        """
+        Serialize only user created events 
+        """
+        return{
+            "created_events": [c.simple_serialize() for c in self.created_events]
+        }
+
 class Event(db.Model):
     """
     Event model 
@@ -116,13 +131,14 @@ class Event(db.Model):
     title = db.Column(db.String, nullable=False)
     host_name = db.Column(db.String, nullable=False)
     date = db.Column(db.Integer, nullable=False)
-    time = db.Column(db.Integer, nullable=False)
     location = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=False)
-    
+
+    image_id = db.Column(db.Integer, db.ForeignKey("assets.id"), nullable=False)
     categories = db.relationship("Category", secondary=category_association_table, back_populates="events")
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
     users_reminder = db.relationship("User", secondary=reminder_events_association_table, back_populates="reminder_events")
+    users_created = db.relationship("User", secondary=created_events_association_table, back_populates="created_events")
 
     def _init_(self, **kwargs):
         """
@@ -131,25 +147,27 @@ class Event(db.Model):
         self.title = kwargs.get("title")
         self.host_name = kwargs.get("host_name")
         self.date = kwargs.get("date")
-        self.time = kwargs.get("time")
         self.location = kwargs.get("location")
         self.description = kwargs.get("description")
+        self.image_id = kwargs.get("image_id")
     
     def serialize(self):
         """
         Serializes Event object
         """
+
+        asset = Asset.query.filter_by(id=self.image_id).first()
         return {
             "id": self.id,
             "title": self.title,
             "date": self.date,
-            "time": self.time,
             "location": self.location,
             "description": self.description,
             "categories": [c.simple_serialize() for c in self.categories], 
             # for Tiffany when she's trying to show randomized event (ex .if she is looking to display location it knows 
             # that only current events have location so that it does not try to display a location for a bucket event and crash)
-            "type": "event"
+            "type": "event",
+            "image": asset.serialize()
         }
 
     def simple_serialize(self):
@@ -160,7 +178,6 @@ class Event(db.Model):
             "id": self.id,
             "title": self.title,
             "date": self.date,
-            "time": self.time,
             "location": self.location,
             "description": self.description
         }
@@ -266,7 +283,6 @@ class Asset(db.Model):
     width = db.Column(db.Integer, nullable=False)
     height = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False)
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
 
     def __init__(self,**kwargs):
         """
@@ -284,10 +300,21 @@ class Asset(db.Model):
             "created_at":str(self.created_at)
         }
 
+    
+
+    def event_serialize(self):
+        """
+        Serialize Asset object
+        """
+        return{
+            "url": f"{self.base_url}/{self.salt}.{self.extension}",
+            "created_at":str(self.created_at)
+        }
+
     def create(self, image_data):
         """
         Given an image in base64 form, it
-        1. Rejects the image is the filetype is not supported
+        1. Rejects the image is the filetype is not supported file type
         2. Generates a random string for the image file name
         3. Decodes the image and attempts to upload it to AWS
         """
@@ -331,10 +358,11 @@ class Asset(db.Model):
         Attempt to upload the image to the specified S3 bucket
         """
         try:
-            #save image temporarily on server
+            # save image temporarily on server
             img_temploc = f"{BASE_DIR}/{img_filename}"
             img.save(img_temploc)
             
+            # upload image to S3
             s3_client = boto3.client("s3")
             s3_client.upload_file(img_temploc, S3_BUCKET_NAME, img_filename)
 
@@ -343,6 +371,7 @@ class Asset(db.Model):
             object_acl = s3_resource.ObjectAcl(S3_BUCKET_NAME, img_filename)
             object_acl.put(ACL="public-read")
 
+            # removes image from server
             os.remove(img_temploc)
 
 

@@ -3,7 +3,7 @@ import json
 from db import db
 from db import Event
 from db import User 
-from db import Category
+#from db import Category
 from db import Bucket
 from db import Asset
 
@@ -15,7 +15,6 @@ from flask import request
 
 import os
 
-from crontab import CronTab
 # Third-party libraries
 from flask import Flask, redirect, request, url_for
 from flask_login import (
@@ -88,6 +87,9 @@ def index():
     else:
         return '<a class="button" href="/login">Google Login</a>'
 
+def get_google_provider_cfg():
+    return requests.get(GOOGLE_DISCOVERY_URL).json()
+
 @app.route("/login")
 def login():
     # Find out what URL to hit for Google login
@@ -157,20 +159,20 @@ def callback():
         id_=unique_id, 
         name=users_name, 
         email=users_email, 
-        profile_pic=picture
+        #profile_pic=picture
     )
 
     # Doesn't exist? Add it to the database.
     if User.query.filter_by(id=unique_id).first() is None:
         db.session.add(user)
         db.session.commit()
-        return success_response(new_user.serialize(), 201)
+        return success_response(user.serialize(), 201)
 
     # Begin user session by logging the user in
     login_user(user)
 
     # Send user back to homepage
-    return redirect(url_for("index"))
+    return success_response(user.serialize(), 200)
 
 @app.route("/logout")
 @login_required
@@ -241,9 +243,11 @@ def create_event(user_id):
     title = body.get("title")
     if title is None:
         return failure_response("Please put something for name of event", 400)
+    """
     host_name = body.get("host_name")
     if host_name is None:
         return failure_response("Please put something for host name", 400)
+    """
     date = body.get("date")
     if date is None:
         return failure_response("Please put something for date", 400) 
@@ -253,15 +257,21 @@ def create_event(user_id):
     description = body.get("description")
     if description is None:
         return failure_response("Please put something for the description", 400) 
-    image_data = body.get("image_data")
+    categories = body.get("categories")
+    if categories is None:
+        return failure_response("Please put something for the category", 400) 
+    
+    image_data = body.get("image")
     if image_data is None:
             return failure_response("No base64 image passed in!")
+    
     # creates image object 
     image = Asset(image_data=image_data)
     db.session.add(image)
     db.session.commit()
+    
     # creates event object 
-    new_event = Event(title=title, host_name=host_name, date=date, location=location, description=description, image_id=image.id)
+    new_event = Event(title=title, date=date, location=location, description=description, image_id=image.id, categories=categories)
     db.session.add(new_event)
     # adds event to user created
     user.created_events.append(new_event)

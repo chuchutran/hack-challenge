@@ -1,8 +1,12 @@
 version: "3"
 
 services:
-  demo:
-    image: kellytran00/hackChallenge
+  app:
+    image: jeh362/hackchallenge
+    volumes: 
+      - /home/jacquelinehui18/buckethaca.db:/usr/app/buckethaca.db
     env_file: .env
     ports:
       - "5000:5000"
+
+      ## this is tiffany's contribution to the backend

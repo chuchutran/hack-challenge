@@ -17,12 +17,13 @@ import bcrypt
 
 db = SQLAlchemy()
 
+"""
 category_association_table = db.Table(
     "association_category",
     db.Column("event_id", db.Integer, db.ForeignKey("events.id")), 
     db.Column("category_id", db.Integer, db.ForeignKey("categories.id"))
     )
-
+"""
 saved_events_association_table = db.Table(
     "association_saved_events", 
     db.Column("saved_event_id", db.Integer, db.ForeignKey("users.id")),
@@ -127,13 +128,12 @@ class Event(db.Model):
     __tablename__ = "events"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     title = db.Column(db.String, nullable=False)
-    host_name = db.Column(db.String, nullable=False)
     date = db.Column(db.Integer, nullable=False)
     location = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=False)
+    categories = db.Column(db.String, nullable=False)
 
     image_id = db.Column(db.Integer, db.ForeignKey("assets.id"), nullable=False)
-    categories = db.relationship("Category", secondary=category_association_table, back_populates="events")
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
     users_reminder = db.relationship("User", secondary=reminder_events_association_table, back_populates="reminder_events")
     users_created = db.relationship("User", secondary=created_events_association_table, back_populates="created_events")
@@ -143,11 +143,11 @@ class Event(db.Model):
         Initialize Event object
         """
         self.title = kwargs.get("title")
-        self.host_name = kwargs.get("host_name")
         self.date = kwargs.get("date")
         self.location = kwargs.get("location")
         self.description = kwargs.get("description")
         self.image_id = kwargs.get("image_id")
+        self.categories = kwargs.get("categories")
     
     def serialize(self):
         """
@@ -161,7 +161,7 @@ class Event(db.Model):
             "date": self.date,
             "location": self.location,
             "description": self.description,
-            "categories": [c.simple_serialize() for c in self.categories], 
+            "categories": self.categories, 
             # for Tiffany when she's trying to show randomized event (ex .if she is looking to display location it knows 
             # that only current events have location so that it does not try to display a location for a bucket event and crash)
             "type": "event",
@@ -211,7 +211,7 @@ class Bucket(db.Model):
             "status": self.status,
             "type": "bucket"
         }
-
+'''
 class Category(db.Model):
     """
     Category model
@@ -253,13 +253,7 @@ class Category(db.Model):
             "color": self.color
         }
 
-# class Token(db.Model):
-#     """
-#     Token Model
-
-#     one to one relationship with User
-#     """
-
+'''
 
 
 EXTENSIONS = ["png", "gif", "jpg", "jpeg"]
@@ -280,7 +274,7 @@ class Asset(db.Model):
     extension =  db.Column(db.String, nullable=False)
     width = db.Column(db.Integer, nullable=False)
     height = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False)
+    #created_at = db.Column(db.DateTime, nullable=False)
 
     def __init__(self,**kwargs):
         """
@@ -293,10 +287,7 @@ class Asset(db.Model):
         """
         Serialize Asset object
         """
-        return{
-            "url": f"{self.base_url}/{self.salt}.{self.extension}",
-            "created_at":str(self.created_at)
-        }
+        return f"{self.base_url}/{self.salt}.{self.extension}"
 
     
 
@@ -304,10 +295,7 @@ class Asset(db.Model):
         """
         Serialize Asset object
         """
-        return{
-            "url": f"{self.base_url}/{self.salt}.{self.extension}",
-            "created_at":str(self.created_at)
-        }
+        return f"{self.base_url}/{self.salt}.{self.extension}"
 
     def create(self, image_data):
         """
@@ -343,7 +331,7 @@ class Asset(db.Model):
             self.extension = ext
             self.width = img.width
             self.height = img.height
-            self.created_at = datetime.datetime.now()
+            #self.created_at = datetime.datetime.now()
 
             img_filename = f"{self.salt}.{self.extension}"
             self.upload(img, img_filename)

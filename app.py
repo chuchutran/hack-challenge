@@ -251,11 +251,9 @@ def create_event(user_id):
     title = body.get("title")
     if title is None:
         return failure_response("Please put something for name of event", 400)
-    """
     host_name = body.get("host_name")
     if host_name is None:
         return failure_response("Please put something for host name", 400)
-    """
     date = body.get("date")
     if date is None:
         return failure_response("Please put something for date", 400) 
@@ -338,6 +336,24 @@ def get_random_event():
     random.shuffle(list)
     return success_response(list[0].serialize())
 
+@app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["POST"])
+def bookmark_event(event_id, user_id):
+    """ 
+    Endpoint for adding an event to user's saved events 
+    """
+    # checks if user exist
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+
+    # checks if event exist
+    event = Event.query.filter_by(id=event_id).first()
+    if event is None:
+        return failure_response("Event not found!")
+    user.saved_events.append(event)
+    db.session.commit()
+    return success_response(user.serialize())
+
 @app.route("/api/users/<int:user_id>/events/bookmark/")
 def get_all_bookmark_current(user_id):
     """
@@ -384,13 +400,31 @@ def create_bucket():
     description = body.get("description")
     if description is None:
         return failure_response("Please put something for the description", 400)
-    status = body.get("status")
-    if status is None:
-        return failure_response("Please indicate status of bucketlist activity", 400)
-    bucket = Bucket(description=description, status=status)
+    # status = body.get("status")
+    # if status is None:
+    #     return failure_response("Please indicate status of bucketlist activity", 400)
+    bucket = Bucket(description=description)
     db.session.add(bucket)
     db.session.commit()
     return success_response(bucket.serialize(), 201)
+
+@app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/bookmark/", methods=["POST"])
+def bookmark_bucket(bucket_id, user_id):
+    """ 
+    Endpoint for adding a bucket to user's saved buckets
+    """
+    # checks if user exist
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+
+    # checks if bucket exist
+    bucket = Bucket.query.filter_by(id=bucket_id).first()
+    if bucket is None:
+        return failure_response("Event not found!")
+    user.saved_buckets.append(bucket)
+    db.session.commit()
+    return success_response(user.serialize())
 
 @app.route("/api/users/<int:user_id>/buckets/bookmark/")
 def get_all_bookmark_bucket(user_id):
@@ -419,93 +453,49 @@ def delete_bookmark_bucket(user_id, bucket_id):
     db.session.commit()
     return success_response(bucket.serialize(), 200)
 
-# @app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/update", methods=["POST"])
-# def update_bucket_status(user_id, bucket_id):
-#     """
-#     Endpoint for updating the status of a bucket list activity
-#     """
-#     user = User.query.filter_by(id=user_id).first()
-#     if user is None:
-#         return failure_response("User not found!")
-#     bucket = Bucket.query.filter_by(id=bucket_id).first()
-#     if bucket is None:
-#         return failure_response("Bucket not found!")
-#     body = json.loads(request.data)
-#     status = body.get("status")
-#     if status is None:
-#         return failure_response("Please put something for the status", 400)
-
 
 # -- CATEGORIES ROUTES ------------------------------------------------------
-@app.route("/api/category/", methods=["POST"])
-def create_category():
-    """
-    Endpoint for creating a category
-    """
-    body = json.loads(request.data)
-    description = body.get("description")
-    if description is None:
-        return failure_response("Please put something for the description", 400)
-    color = body.get("color")
-    if color is None:
-        return failure_response("Please indicate color for the category", 400)
-    category = Category(description=description, color=color)
-    db.session.add(category)
-    db.session.commit()
-    return success_response(category.serialize())
+# @app.route("/api/category/", methods=["POST"])
+# def create_category():
+#     """
+#     Endpoint for creating a category
+#     """
+#     body = json.loads(request.data)
+#     description = body.get("description")
+#     if description is None:
+#         return failure_response("Please put something for the description", 400)
+#     color = body.get("color")
+#     if color is None:
+#         return failure_response("Please indicate color for the category", 400)
+#     category = Category(description=description, color=color)
+#     db.session.add(category)
+#     db.session.commit()
+#     return success_response(category.serialize())
     
-@app.route("/api/category/<int:category_id>/events/")
-def get_category(category_id):
-    """
-    Endpoint for getting events by category
-    """
-    category = Category.query.filter_by(id=category_id).first()
-    if category is None:
-        return failure_response("Category not found!")
-    return success_response(category.serialize())
+# @app.route("/api/category/<int:category_id>/events/")
+# def get_category(category_id):
+#     """
+#     Endpoint for getting events by category
+#     """
+#     category = Category.query.filter_by(id=category_id).first()
+#     if category is None:
+#         return failure_response("Category not found!")
+#     return success_response(category.serialize())
 
-@app.route("/api/category/<int:category_id>/events/<int:event_id>/assign/", methods=["POST"])
-def assign_category(event_id, category_id):
-    """
-    Endpoint for assigning a category to a event by id
-    """
-    event = Event.query.filter_by(id=event_id).first()
-    if event is None:
-        return failure_response("Event not found!")
-    category = Category.query.filter_by(id=category_id).first()
-    if category is None:
-        return failure_response("Category not found!")
-    event.categories.append(category)
-    db.session.commit()
-    return success_response(event.serialize())
-
-# -- OTHER ROUTES ----------------------------------------------------------
-@app.route("/api/users/<int:user_id>/events/<int:occasion_id>/bookmark/", methods=["POST"])
-def bookmark_occasion(occasion_id, user_id):
-    """ 
-    Endpoint for adding an occasion to user's saved events or buckets based on type 
-    """
-    # checks if user exist
-    user = User.query.filter_by(id=user_id).first()
-    if user is None:
-        return failure_response("User not found!")
-    
-    body = json.loads(request.data)
-    if body.get("type") == "event":
-        event = Event.query.filter_by(id=occasion_id).first()
-        if event is None:
-            return failure_response("Event not found!")
-        user.saved_events.append(event)
-        db.session.commit()
-    elif body.get("type") == "bucket":
-        bucket = Bucket.query.filter_by(id=occasion_id).first()
-        if bucket is None:
-            return failure_response("Bucketlist activity not found!")
-        user.saved_buckets.append(bucket)
-        db.session.commit()
-    else:
-        return failure_response("Sorry, something went wrong.", 400)
-    return success_response(user.serialize())
+# @app.route("/api/category/<int:category_id>/events/<int:event_id>/assign/", methods=["POST"])
+# def assign_category(event_id, category_id):
+#     """
+#     Endpoint for assigning a category to a event by id
+#     """
+#     event = Event.query.filter_by(id=event_id).first()
+#     if event is None:
+#         return failure_response("Event not found!")
+#     category = Category.query.filter_by(id=category_id).first()
+#     if category is None:
+#         return failure_response("Category not found!")
+#     event.categories.append(category)
+#     db.session.commit()
+#     return success_response(event.serialize())
 
 
 if __name__ == "__main__":

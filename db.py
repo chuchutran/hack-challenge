@@ -128,6 +128,7 @@ class Event(db.Model):
     __tablename__ = "events"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     title = db.Column(db.String, nullable=False)
+    host_name = db.Column(db.String, nullable=False)
     date = db.Column(db.Integer, nullable=False)
     location = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=False)
@@ -143,6 +144,7 @@ class Event(db.Model):
         Initialize Event object
         """
         self.title = kwargs.get("title")
+        self.host_name = kwargs.get("host_name")
         self.date = kwargs.get("date")
         self.location = kwargs.get("location")
         self.description = kwargs.get("description")
@@ -153,19 +155,19 @@ class Event(db.Model):
         """
         Serializes Event object
         """
-
         asset = Asset.query.filter_by(id=self.image_id).first()
         return {
             "id": self.id,
             "title": self.title,
+            "host_name": self.host_name,
             "date": self.date,
             "location": self.location,
             "description": self.description,
             "categories": self.categories, 
+            "image": asset.serialize(),
             # for Tiffany when she's trying to show randomized event (ex .if she is looking to display location it knows 
             # that only current events have location so that it does not try to display a location for a bucket event and crash)
-            "type": "event",
-            "image": asset.serialize()
+            "type": "event"
         }
 
     def simple_serialize(self):
@@ -175,6 +177,7 @@ class Event(db.Model):
         return {
             "id": self.id,
             "title": self.title,
+            "host_name": self.host_name,
             "date": self.date,
             "location": self.location,
             "description": self.description
@@ -191,7 +194,6 @@ class Bucket(db.Model):
     __tablename__ = "buckets"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     description = db.Column(db.String, nullable=True)
-    status = db.Column(db.Boolean, default=False)
     users_saved = db.relationship("User", secondary=saved_buckets_association_table, back_populates="saved_buckets")
 
     def _init_(self, **kwargs):
@@ -199,7 +201,6 @@ class Bucket(db.Model):
         Initialize Bucket object
         """
         self.description = kwargs.get("description")
-        self.status = kwargs.get("status")
     
     def serialize(self):
         """
@@ -208,9 +209,9 @@ class Bucket(db.Model):
         return {
             "id": self.id,
             "description": self.description, 
-            "status": self.status,
             "type": "bucket"
         }
+
 '''
 class Category(db.Model):
     """

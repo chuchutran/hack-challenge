@@ -277,7 +277,7 @@ def create_event(user_id):
     db.session.commit()
     
     # creates event object 
-    new_event = Event(title=title, date=date, location=location, description=description, image_id=image.id, categories=categories)
+    new_event = Event(title=title, date=date, host_name=host_name, location=location, description=description, image_id=image.id, categories=categories)
     db.session.add(new_event)
     # adds event to user created
     user.created_events.append(new_event)

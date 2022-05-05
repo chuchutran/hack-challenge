@@ -194,14 +194,11 @@ def create_user():
     body = json.loads(request.data)
     name=body.get("name")
     email=body.get("email")
-    phone_number=body.get("phone_number")
     if name is None:
         return failure_response("Please enter something for name", 400)
     if email is None:
         return failure_response("Please enter something for email", 400)
-    if phone_number is None:
-        return failure_response("Please enter something for phone_number", 400)
-    new_user = User(name=name, email=email, phone_number=phone_number)
+    new_user = User(name=name, email=email)
     db.session.add(new_user)
     db.session.commit()
     return success_response(new_user.serialize(), 201)

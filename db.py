@@ -59,7 +59,6 @@ class User(db.Model):
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True)
     # profile_pic = db.Column(db.String, nullable=False)
-    phone_number = db.Column(db.Integer, nullable=False)
     
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
@@ -74,7 +73,6 @@ class User(db.Model):
         self.name = kwargs.get("name")
         self.email = kwargs.get("email")
         # self.profile_pic = kwargs.get("profile_pic")
-        self.phone_number = kwargs.get("phone_number")
         # self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
 
     def serialize(self):
@@ -85,7 +83,6 @@ class User(db.Model):
             "id": self.id,
             "name": self.name,
             "email": self.email,
-            "phone_number": self.phone_number,
             "saved_events": [e.serialize() for e in self.saved_events], 
             "saved_buckets": [b.serialize() for b in self.saved_buckets],
             "reminder_events": [r.serialize() for r in self.reminder_events],

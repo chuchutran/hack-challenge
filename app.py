@@ -15,7 +15,7 @@ from flask import request
 
 import os
 
-from crontab import CronTab
+# from crontab import CronTab
 # Third-party libraries
 from flask import Flask, redirect, request, url_for
 from flask_login import (
@@ -25,6 +25,7 @@ from flask_login import (
     login_user,
     logout_user,
 )
+
 from oauthlib.oauth2 import WebApplicationClient
 import requests
 
@@ -182,9 +183,6 @@ def logout():
     return redirect(url_for("index"))
 
 
-# -- EVENT ROUTES ------------------------------------------------------
-
-
 # -- USER ROUTES ------------------------------------------------------
 @app.route("/api/users/", methods=["POST"])
 def create_user():
@@ -216,7 +214,17 @@ def get_specific_user(user_id):
         return failure_response("User not found!")
     return success_response(user.serialize())
 
-
+@app.route("/api/user/<int:user_id>/")
+def delete_user(user_id):
+    """
+    Endpoint for deleting a user 
+    """
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    db.session.delete(user)
+    db.session.commit()
+    return success_response(user.serialize())
 
 # -- EVENT ROUTES ------------------------------------------------------
 @app.route("/api/events/")
@@ -278,6 +286,18 @@ def get_specific_event(event_id):
     if event is None:
         return failure_response("Sorry, event was not found.")
     return success_response(event.serialize())
+
+@app.route("/api/event/<search>/")
+def search_event(search):
+    """
+    Endpoint for getting events by search 
+    """
+    events = Event.query.all()
+    relevant = []
+    for event in events:
+        if search in event.title:
+            relevant.append(event)
+    return success_response({"events": [e.serialize() for e in relevant]})            
 
 @app.route("/api/users/<int:user_id>/events/<int:event_id>/", methods=["DELETE"])
 def delete_event(user_id,event_id):
@@ -424,7 +444,7 @@ def create_category():
     db.session.commit()
     return success_response(category.serialize())
     
-@app.route("/api/category/<int:category_id>/events")
+@app.route("/api/category/<int:category_id>/events/")
 def get_category(category_id):
     """
     Endpoint for getting events by category
@@ -434,7 +454,7 @@ def get_category(category_id):
         return failure_response("Category not found!")
     return success_response(category.serialize())
 
-@app.route("/api/category/<int:category_id>/events/<int:event_id>/assign", methods=["POST"])
+@app.route("/api/category/<int:category_id>/events/<int:event_id>/assign/", methods=["POST"])
 def assign_category(event_id, category_id):
     """
     Endpoint for assigning a category to a event by id

@@ -57,7 +57,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True)
-    profile_pic = db.Column(db.String, nullable=False)
+    # profile_pic = db.Column(db.String, nullable=False)
     phone_number = db.Column(db.Integer, nullable=False)
     
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
@@ -72,7 +72,7 @@ class User(db.Model):
         """
         self.name = kwargs.get("name")
         self.email = kwargs.get("email")
-        self.profile_pic = kwargs.get("profile_pic")
+        # self.profile_pic = kwargs.get("profile_pic")
         self.phone_number = kwargs.get("phone_number")
         # self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
 
@@ -265,7 +265,7 @@ class Category(db.Model):
 EXTENSIONS = ["png", "gif", "jpg", "jpeg"]
 BASE_DIR = os.getcwd()
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
-S3_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com" 
+S3_BASE_URL = f"https://{S3_BUCKET_NAME}.s3.us-east-2.amazonaws.com" 
 
 class Asset(db.Model):
     """

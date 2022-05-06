@@ -122,6 +122,20 @@ class User(db.Model):
             "created_events": [c.serialize() for c in self.created_events]
         }
 
+class Phone(db.Model):
+    """
+    Phone number model 
+
+    Has a one-to-one relationship with Users table 
+    """
+
+    __tablename__ = "phone_numbers"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    number = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.)
+
+
+
 class Event(db.Model):
     """
     Event model 

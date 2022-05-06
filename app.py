@@ -51,7 +51,7 @@ def failure_response(message, code=404):
 
 # -- GOOGLE ROUTES ------------------------------------------------------
 
-@app.route("/api/login/")
+@app.route("/api/login/", methods=["POST"])
 def login():
     data = json.loads(request.data)
     token = data.get("token")
@@ -259,7 +259,7 @@ def delete_bookmark_current(user_id, event_id):
         if event.id==event_id:
             user.saved_events.remove(event)
     db.session.commit()
-    return success_response(event.simple_serialize(), 200)
+    return success_response(event.serialize(), 200)
 
 
 

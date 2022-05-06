@@ -125,26 +125,12 @@ class User(db.Model):
             "created_events": [c.serialize() for c in self.created_events]
         }
 
-<<<<<<< HEAD
 class Phone(db.Model):
 
     __tablename__ = "phone_numbers"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     number = db.Column(db.Integer, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-=======
-# class Phone(db.Model):
-#     """
-#     Phone number model 
-
-#     Has a one-to-one relationship with Users table 
-#     """
-
-#     __tablename__ = "phone_numbers"
-#     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-#     number = db.Column(db.Integer, nullable=False)
-#     user_id = db.Column(db.)
->>>>>>> fe5f0f2948d2ba336c0266d5a610d750226763d9
 
     def _init_(self, **kwargs):
         """

@@ -2,7 +2,6 @@
 from db import db
 from db import Event
 from db import User 
-from db import Category
 from db import Bucket
 from db import Asset
 from db import Phone

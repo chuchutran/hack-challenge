@@ -5,6 +5,7 @@ from db import Event
 from db import User 
 from db import Bucket
 from db import Asset
+from db import Phone
 
 import random
 
@@ -72,6 +73,20 @@ def login():
         # return session serialize
     except ValueError:
         raise Exception("Invalid Token")
+
+@app.route("/api/users/<int:user_id>/phone/", methods=["POST"])
+def add_number(user_id):
+    """
+    Endpoint for adding phone number to user
+    """
+    body = json.loads(request.data)
+    number = body.get("number")
+    if number is None:
+        return failure_response("Please input a phone number", 400)
+    phone_number = Phone(user_id=user_id, number=number)
+    db.session.add(phone_number)
+    db.session.commit()
+    return success_response(phone_number.serialize())
 
 
 # -- USER ROUTES ------------------------------------------------------

@@ -17,13 +17,12 @@ import bcrypt
 
 db = SQLAlchemy()
 
-"""
-category_association_table = db.Table(
-    "association_category",
-    db.Column("event_id", db.Integer, db.ForeignKey("events.id")), 
-    db.Column("category_id", db.Integer, db.ForeignKey("categories.id"))
-    )
-"""
+
+user_bucket_list_association_table =db.Table(
+    "association_user_bucket_list", 
+    db.Column("user_bucket_list_id", db.Integer, db.ForeignKey("users.id")), 
+    db.Column("bucket_user_list_id", db.Integer, db.ForeignKey("buckets.id"))
+)
 saved_events_association_table = db.Table(
     "association_saved_events", 
     db.Column("saved_event_id", db.Integer, db.ForeignKey("users.id")),
@@ -62,8 +61,9 @@ class User(db.Model):
     
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
-    reminder_events = db.relationship("Event", secondary=reminder_events_association_table, back_populates="users_saved")
+    reminder_events = db.relationship("Event", secondary=reminder_events_association_table, back_populates="users_reminder")
     created_events = db.relationship("Event", secondary=created_events_association_table, back_populates="users_created")
+    completed_bucket_list = db.relationship("Bucket", secondary=user_bucket_list_association_table, back_populates="users_completed")
 
    
     def _init_(self, **kwargs):
@@ -73,7 +73,6 @@ class User(db.Model):
         self.name = kwargs.get("name")
         self.email = kwargs.get("email")
         # self.profile_pic = kwargs.get("profile_pic")
-        # self.password_digest = bcrypt.hashpw(kwargs.get("password").encode("utf8"), bcrypt.gensalt(rounds=13))
 
     def serialize(self):
         """
@@ -86,8 +85,18 @@ class User(db.Model):
             "saved_events": [e.serialize() for e in self.saved_events], 
             "saved_buckets": [b.serialize() for b in self.saved_buckets],
             "reminder_events": [r.serialize() for r in self.reminder_events],
-            "created_events": [c.serialize() for c in self.created_events]
+            "created_events": [c.serialize() for c in self.created_events], 
+            "completed_bucket_list": [u.serialize() for u in self.completed_bucket_list]
         }
+
+    def serialize_completed_buckets(self):
+        """
+        serialize completed buckets
+        """
+        return{
+            "completed_bucket_list": [u.serialize() for u in self.completed_bucket_list]
+        }
+
 
     def serialize_saved_buckets(self):
         """
@@ -102,7 +111,7 @@ class User(db.Model):
         Serialize only saved buckets from user
         """
         return{
-            "saved_events": [e.simple_serialize() for e in self.saved_events]
+            "saved_events": [e.serialize() for e in self.saved_events]
         }
 
     def serialize_created_events(self):
@@ -110,7 +119,7 @@ class User(db.Model):
         Serialize only user created events 
         """
         return{
-            "created_events": [c.simple_serialize() for c in self.created_events]
+            "created_events": [c.serialize() for c in self.created_events]
         }
 
 class Event(db.Model):
@@ -130,8 +139,8 @@ class Event(db.Model):
     location = db.Column(db.String, nullable=False)
     description = db.Column(db.String, nullable=False)
     categories = db.Column(db.String, nullable=False)
-
     image_id = db.Column(db.Integer, db.ForeignKey("assets.id"), nullable=False)
+
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
     users_reminder = db.relationship("User", secondary=reminder_events_association_table, back_populates="reminder_events")
     users_created = db.relationship("User", secondary=created_events_association_table, back_populates="created_events")
@@ -145,9 +154,9 @@ class Event(db.Model):
         self.date = kwargs.get("date")
         self.location = kwargs.get("location")
         self.description = kwargs.get("description")
-        self.image_id = kwargs.get("image_id")
         self.categories = kwargs.get("categories")
-    
+        self.image_id = kwargs.get("image_id")
+        
     def serialize(self):
         """
         Serializes Event object
@@ -162,8 +171,6 @@ class Event(db.Model):
             "description": self.description,
             "categories": self.categories, 
             "image": asset.serialize(),
-            # for Tiffany when she's trying to show randomized event (ex .if she is looking to display location it knows 
-            # that only current events have location so that it does not try to display a location for a bucket event and crash)
             "type": "event"
         }
 
@@ -190,14 +197,13 @@ class Bucket(db.Model):
 
     __tablename__ = "buckets"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    description = db.Column(db.String, nullable=True)
     users_saved = db.relationship("User", secondary=saved_buckets_association_table, back_populates="saved_buckets")
+    users_completed = db.relationship("User", secondary=user_bucket_list_association_table, back_populates="completed_bucket_list")
 
     def _init_(self, **kwargs):
         """
         Initialize Bucket object
         """
-        self.description = kwargs.get("description")
     
     def serialize(self):
         """
@@ -205,53 +211,9 @@ class Bucket(db.Model):
         """
         return {
             "id": self.id,
-            "description": self.description, 
             "type": "bucket"
         }
 
-'''
-class Category(db.Model):
-    """
-    Category model
-
-    Has a many-to-many relationship with Events table
-    """
-
-    __tablename__ = "categories"
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    description = db.Column(db.String, nullable=False)
-    color = db.Column(db.String, nullable=False)
-    events = db.relationship("Event", secondary=category_association_table, back_populates="categories")
-
-    def _init_(self, **kwargs):
-        """
-        Initialize Category object/entry
-        """
-        self.description = kwargs.get("description")
-        self.color = kwargs.get("color")
-
-    def serialize(self):
-        """
-        Serializes a Category object 
-        """
-        return {
-            "id": self.id,
-            "description": self.description,
-            "color": self.color,
-            "events": [e.simple_serialize() for e in self.events]
-        }
-
-    def simple_serialize(self):
-        """
-        Simple serializes a Category object 
-        """
-        return {
-            "id": self.id,
-            "description": self.description,
-            "color": self.color
-        }
-
-'''
 
 
 EXTENSIONS = ["png", "gif", "jpg", "jpeg"]
@@ -327,7 +289,6 @@ class Asset(db.Model):
             self.extension = ext
             self.width = img.width
             self.height = img.height
-            #self.created_at = datetime.datetime.now()
 
             img_filename = f"{self.salt}.{self.extension}"
             self.upload(img, img_filename)

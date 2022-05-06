@@ -173,7 +173,7 @@ def callback():
     login_user(user)
 
     # Send user back to homepage
-    return success_response(user.serialize(), 200)
+    return success_response(user.serialize())
 
 @app.route("/logout")
 @login_required
@@ -263,10 +263,9 @@ def create_event(user_id):
     categories = body.get("categories")
     if categories is None:
         return failure_response("Please put something for the category", 400) 
-    
     image_data = body.get("image")
     if image_data is None:
-            return failure_response("No base64 image passed in!")
+            return failure_response("No base64 image passed in!", 400)
     
     # creates image object 
     image = Asset(image_data=image_data)
@@ -376,7 +375,7 @@ def delete_bookmark_current(user_id, event_id):
         if event.id==event_id:
             user.saved_events.remove(event)
     db.session.commit()
-    return success_response(event.simple_serialize(), 200)
+    return success_response(event.simple_serialize())
 
 
 
@@ -388,22 +387,22 @@ def get_all_bucket():
     """
     return success_response({"buckets": [b.serialize() for b in Bucket.query.all()]})
     
-@app.route("/api/buckets/", methods=["POST"])
-def create_bucket():
-    """
-    Endpoint for creating a bucketlist activity
-    """
-    body = json.loads(request.data)
-    description = body.get("description")
-    if description is None:
-        return failure_response("Please put something for the description", 400)
-    # status = body.get("status")
-    # if status is None:
-    #     return failure_response("Please indicate status of bucketlist activity", 400)
-    bucket = Bucket(description=description)
-    db.session.add(bucket)
-    db.session.commit()
-    return success_response(bucket.serialize(), 201)
+# @app.route("/api/buckets/", methods=["POST"])
+# def create_bucket():
+#     """
+#     Endpoint for creating a bucketlist activity
+#     """
+#     body = json.loads(request.data)
+#     description = body.get("description")
+#     if description is None:
+#         return failure_response("Please put something for the description", 400)
+#     # status = body.get("status")
+#     # if status is None:
+#     #     return failure_response("Please indicate status of bucketlist activity", 400)
+#     bucket = Bucket(description=description)
+#     db.session.add(bucket)
+#     db.session.commit()
+#     return success_response(bucket.serialize(), 201)
 
 @app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/bookmark/", methods=["POST"])
 def bookmark_bucket(bucket_id, user_id):
@@ -433,22 +432,22 @@ def get_all_bookmark_bucket(user_id):
         return failure_response("User not found!")
     return success_response(user.serialize_saved_buckets()) 
 
-@app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/bookmark/", methods=["DELETE"])
-def delete_bookmark_bucket(user_id, bucket_id):
-    """
-    Endpoint for deleting saved bucket
-    """
-    user = User.query.filter_by(id=user_id).first()
-    if user is None:
-        return failure_response("User not found!")
-    bucket = Bucket.query.filter_by(id=bucket_id).first()
-    if bucket is None:
-        return failure_response("Bucket not found!")
-    for bucket in user.saved_buckets:
-        if bucket.id==bucket_id:
-            user.saved_buckets.remove(bucket)
-    db.session.commit()
-    return success_response(bucket.serialize(), 200)
+# @app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/bookmark/", methods=["DELETE"])
+# def delete_bookmark_bucket(user_id, bucket_id):
+#     """
+#     Endpoint for deleting saved bucket
+#     """
+#     user = User.query.filter_by(id=user_id).first()
+#     if user is None:
+#         return failure_response("User not found!")
+#     bucket = Bucket.query.filter_by(id=bucket_id).first()
+#     if bucket is None:
+#         return failure_response("Bucket not found!")
+#     for bucket in user.saved_buckets:
+#         if bucket.id==bucket_id:
+#             user.saved_buckets.remove(bucket)
+#     db.session.commit()
+#     return success_response(bucket.serialize())
 
 
 # -- CATEGORIES ROUTES ------------------------------------------------------

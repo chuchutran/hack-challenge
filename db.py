@@ -287,8 +287,6 @@ class Asset(db.Model):
         """
         return f"{self.base_url}/{self.salt}.{self.extension}"
 
-    
-
     def event_serialize(self):
         """
         Serialize Asset object

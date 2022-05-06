@@ -17,15 +17,8 @@ import os
 
 # Third-party libraries
 from flask import Flask, redirect, request, url_for
-from flask_login import (
-    LoginManager,
-    current_user,
-    login_required,
-    login_user,
-    logout_user,
-)
 
-from oauthlib.oauth2 import WebApplicationClient
+from google.oauth2 import id_token
 import requests
 
 # define db filename 
@@ -43,10 +36,6 @@ GOOGLE_DISCOVERY_URL = (
     "https://accounts.google.com/.well-known/openid-configuration"
 )
 
-# User session management setup
-login_manager = LoginManager()
-login_manager.init_app(app)
-
 # initialize app
 db.init_app(app)
 with app.app_context():
@@ -60,129 +49,23 @@ def failure_response(message, code=404):
     return json.dumps({"error": message}), code
 
 
-# OAuth 2 client setup
-client = WebApplicationClient(GOOGLE_CLIENT_ID)
-
-# Flask-Login helper to retrieve a user from our db
-@login_manager.user_loader
-def load_user(user_id):
-    return User.get(user_id)
-
 # -- GOOGLE ROUTES ------------------------------------------------------
-@app.route("/")
-def index():
-    """
-    Endpoint for Homepage, IDK if we need this tho cause it is not a web app but oh well
 
-    Returns HTML as a string
-    """
-    if current_user.is_authenticated:
-        return (
-            "<p>Hello, {}! You're logged in! Email: {}</p>"
-            "<div><p>Google Profile Picture:</p>"
-            '<img src="{}" alt="Google profile pic"></img></div>'
-            '<a class="button" href="/logout">Logout</a>'.format(
-                current_user.name, current_user.email, current_user.profile_pic
-            )
-        )
-    else:
-        return '<a class="button" href="/login">Google Login</a>'
-
-def get_google_provider_cfg():
-    return requests.get(GOOGLE_DISCOVERY_URL).json()
-
-@app.route("/login")
+@app.route("/api/login/")
 def login():
-    # Find out what URL to hit for Google login
-    google_provider_cfg = get_google_provider_cfg()
-    authorization_endpoint = google_provider_cfg["authorization_endpoint"]
-
-    # Use library to construct the request for Google login and provide
-    # scopes that let you retrieve user's profile from Google
-    request_uri = client.prepare_request_uri(
-        authorization_endpoint,
-        redirect_uri=request.base_url + "/callback",
-        scope=["openid", "email", "profile"],
-    )
-    return redirect(request_uri)
-
-@app.route("/login/callback")
-def callback():
-    """
-    After login route, google asks the user for consent and stuff to share their info with is, Then google generates and sends us 
-    a unique code that is sent to the callpack endpoint
-
-    This endpoint gets that code
-    """ 
-    # Get authorization code Google sent back to you
-    code = request.args.get("code")
-    # Find out what URL to hit to get tokens that allow you to ask for
-    # things on behalf of a user
-    google_provider_cfg = get_google_provider_cfg()
-    token_endpoint = google_provider_cfg["token_endpoint"]
-    # Prepare and send a request to get tokens! Yay tokens!
-    token_url, headers, body = client.prepare_token_request(
-        token_endpoint,
-        authorization_response=request.url,
-        redirect_url=request.base_url,
-        code=code
-    )
-    token_response = requests.post(
-        token_url,
-        headers=headers,
-        data=body,
-        auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
-    )
-    # Parse the tokens!
-    client.parse_request_body_response(json.dumps(token_response.json()))
-
-    # Now that you have tokens (yay) let's find and hit the URL
-    # from Google that gives you the user's profile information,
-    # including their Google profile image and email
-    userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
-    uri, headers, body = client.add_token(userinfo_endpoint)
-    userinfo_response = requests.get(uri, headers=headers, data=body)
-
-    # You want to make sure their email is verified.
-    # The user authenticated with Google, authorized your
-    # app, and now you've verified their email through Google!
-    if userinfo_response.json().get("email_verified"):
-        unique_id = userinfo_response.json()["sub"]
-        users_email = userinfo_response.json()["email"]
-        picture = userinfo_response.json()["picture"]
-        users_name = userinfo_response.json()["given_name"]
-    else:
-        return "User email not available or not verified by Google.", 400
-
-    # Create a user in your db with the information provided
-    # by Google
-    user = User(
-        id_=unique_id, 
-        name=users_name, 
-        email=users_email, 
-        #profile_pic=picture
-    )
-
-    # Doesn't exist? Add it to the database.
-    if User.query.filter_by(id=unique_id).first() is None:
-        db.session.add(user)
-        db.session.commit()
-        return success_response(user.serialize(), 201)
-
-    # Begin user session by logging the user in
-    login_user(user)
-
-    # Send user back to homepage
-    return success_response(user.serialize(), 200)
-
-@app.route("/logout")
-@login_required
-def logout():
-    """
-    Endpoint for Logging Out
-    """
-    logout_user()
-    return redirect(url_for("index"))
+    data = json.loads(request.data)
+    token = data.get("token")
+    try:
+        id_info = id_token.verify_oauth2_token(token, requests.Request, os.environ.get("CLIENT_ID"))
+        email, first_name, last_name = id_info["email"], id_info["given_name"], id_info["family_name"]
+        name = first_name + " " + last_name
+        # create user
+        new_user = User(name=name, email=email)
+        return new_user.serialize()
+        # create session
+        # return session serialize
+    except ValueError:
+        raise Exception("Invalid Token")
 
 
 # -- USER ROUTES ------------------------------------------------------
@@ -198,7 +81,7 @@ def create_user():
         return failure_response("Please enter something for name", 400)
     if email is None:
         return failure_response("Please enter something for email", 400)
-    new_user = User(name=name, email=email)
+    new_user = User(name=name, email=email) #can you dp this? input things into assocaition table when they are being created?
     db.session.add(new_user)
     db.session.commit()
     return success_response(new_user.serialize(), 201)
@@ -381,12 +264,15 @@ def delete_bookmark_current(user_id, event_id):
 
 
 # -- BUCKET ROUTES ------------------------------------------------------
-@app.route("/api/buckets/")
-def get_all_bucket():
+@app.route("/api/users/<int:user_id>/buckets/")
+def get_completed_buckets(user_id):
     """
     Endpoint for getting all Bucket items
     """
-    return success_response({"buckets": [b.serialize() for b in Bucket.query.all()]})
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    return success_response(user.serialize_completed_buckets())
     
 @app.route("/api/buckets/", methods=["POST"])
 def create_bucket():
@@ -450,49 +336,24 @@ def delete_bookmark_bucket(user_id, bucket_id):
     db.session.commit()
     return success_response(bucket.serialize(), 200)
 
+@app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/completed/", methods=["POST"])
+def complete_bucket(bucket_id, user_id):
+    """ 
+    Endpoint for adding an event to user's saved events 
+    """
+    # checks if user exist
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
 
-# -- CATEGORIES ROUTES ------------------------------------------------------
-# @app.route("/api/category/", methods=["POST"])
-# def create_category():
-#     """
-#     Endpoint for creating a category
-#     """
-#     body = json.loads(request.data)
-#     description = body.get("description")
-#     if description is None:
-#         return failure_response("Please put something for the description", 400)
-#     color = body.get("color")
-#     if color is None:
-#         return failure_response("Please indicate color for the category", 400)
-#     category = Category(description=description, color=color)
-#     db.session.add(category)
-#     db.session.commit()
-#     return success_response(category.serialize())
-    
-# @app.route("/api/category/<int:category_id>/events/")
-# def get_category(category_id):
-#     """
-#     Endpoint for getting events by category
-#     """
-#     category = Category.query.filter_by(id=category_id).first()
-#     if category is None:
-#         return failure_response("Category not found!")
-#     return success_response(category.serialize())
+    # checks if event exist
+    bucket = Bucket.query.filter_by(id=bucket_id).first()
+    if bucket is None:
+        return failure_response("Event not found!")
+    user.completed_bucket_list.append(bucket)
+    db.session.commit()
+    return success_response(user.serialize())
 
-# @app.route("/api/category/<int:category_id>/events/<int:event_id>/assign/", methods=["POST"])
-# def assign_category(event_id, category_id):
-#     """
-#     Endpoint for assigning a category to a event by id
-#     """
-#     event = Event.query.filter_by(id=event_id).first()
-#     if event is None:
-#         return failure_response("Event not found!")
-#     category = Category.query.filter_by(id=category_id).first()
-#     if category is None:
-#         return failure_response("Category not found!")
-#     event.categories.append(category)
-#     db.session.commit()
-#     return success_response(event.serialize())
 
 
 if __name__ == "__main__":

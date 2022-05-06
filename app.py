@@ -56,11 +56,16 @@ def login():
     data = json.loads(request.data)
     token = data.get("token")
     try:
-        id_info = id_token.verify_oauth2_token(token, requests.Request, os.environ.get("CLIENT_ID"))
+        id_info = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get("CLIENT_ID"))
         email, first_name, last_name = id_info["email"], id_info["given_name"], id_info["family_name"]
         name = first_name + " " + last_name
         # create user
+        users = User.query.all()
+        for user in users:
+            if user.email == id_info["email"]:
+                return 
         new_user = User(name=name, email=email)
+
         return new_user.serialize()
         # create session
         # return session serialize
@@ -181,8 +186,10 @@ def search_event(search):
     """
     events = Event.query.all()
     relevant = []
+    
     for event in events:
-        if search in event.title:
+        event_title = event.title
+        if search.lower() in event_title.lower():
             relevant.append(event)
     return success_response({"events": [e.serialize() for e in relevant]})            
 

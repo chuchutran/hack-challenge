@@ -13,6 +13,8 @@ import re
 import string
 
 import hashlib
+
+from sqlalchemy import ForeignKey
 import bcrypt
 
 db = SQLAlchemy()
@@ -123,17 +125,25 @@ class User(db.Model):
         }
 
 class Phone(db.Model):
-    """
-    Phone number model 
-
-    Has a one-to-one relationship with Users table 
-    """
 
     __tablename__ = "phone_numbers"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     number = db.Column(db.Integer, nullable=False)
-    user_id = db.Column(db.)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
+    def _init_(self, **kwargs):
+        """
+        Initialize User object/entry
+        """
+        self.number = kwargs.get("number")
+
+    def serialize(self):
+        """
+        Serializes User object
+        """
+        return {
+            "number": self.number
+        }
 
 
 class Event(db.Model):

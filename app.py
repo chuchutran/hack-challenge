@@ -16,8 +16,9 @@ import os
 # Third-party libraries
 from flask import Flask, redirect, request, url_for
 
+# google libraries
 from google.oauth2 import id_token
-import requests
+from google.auth.transport import requests
  
 # define db filename 
 app = Flask(__name__)
@@ -55,7 +56,7 @@ def login():
     data = json.loads(request.data)
     token = data.get("token")
     try:
-        id_info = id_token.verify_oauth2_token(token, requests.Request, os.environ.get("CLIENT_ID"))
+        id_info = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get("CLIENT_ID"))
         email, first_name, last_name = id_info["email"], id_info["given_name"], id_info["family_name"]
         name = first_name + " " + last_name
         # create user
@@ -173,7 +174,7 @@ def get_specific_event(event_id):
         return failure_response("Sorry, event was not found.")
     return success_response(event.serialize())
 
-@app.route("/api/event/<search>/")
+@app.route("/api/event/<string:search>/")
 def search_event(search):
     """
     Endpoint for getting events by search 
@@ -300,27 +301,27 @@ def get_all_bookmark_bucket(user_id):
         return failure_response("User not found!")
     return success_response(user.serialize_saved_buckets()) 
 
-# @app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/bookmark/", methods=["DELETE"])
-# def delete_bookmark_bucket(user_id, bucket_id):
-#     """
-#     Endpoint for deleting saved bucket
-#     """
-#     user = User.query.filter_by(id=user_id).first()
-#     if user is None:
-#         return failure_response("User not found!")
-#     bucket = Bucket.query.filter_by(id=bucket_id).first()
-#     if bucket is None:
-#         return failure_response("Bucket not found!")
-#     for bucket in user.saved_buckets:
-#         if bucket.id==bucket_id:
-#             user.saved_buckets.remove(bucket)
-#     db.session.commit()
-#     return success_response(bucket.serialize())
+@app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/bookmark/", methods=["DELETE"])
+def delete_bookmark_bucket(user_id, bucket_id):
+    """
+    Endpoint for deleting saved bucket
+    """
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found!")
+    bucket = Bucket.query.filter_by(id=bucket_id).first()
+    if bucket is None:
+        return failure_response("Bucket not found!")
+    for bucket in user.saved_buckets:
+        if bucket.id==bucket_id:
+            user.saved_buckets.remove(bucket)
+    db.session.commit()
+    return success_response(bucket.serialize())
 
 @app.route("/api/users/<int:user_id>/buckets/<int:bucket_id>/completed/", methods=["POST"])
 def complete_bucket(bucket_id, user_id):
     """ 
-    Endpoint for adding an event to user's saved events 
+    Endpoint for adding a bucket to user's completed buckets 
     """
     # checks if user exist
     user = User.query.filter_by(id=user_id).first()

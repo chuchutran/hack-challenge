@@ -236,8 +236,10 @@ def search_event(search):
     """
     events = Event.query.all()
     relevant = []
+    
     for event in events:
-        if search in event.title:
+        event_title = event.title
+        if search.lower() in event_title.lower():
             relevant.append(event)
     return success_response({"events": [e.serialize() for e in relevant]})            
 

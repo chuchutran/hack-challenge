@@ -5,6 +5,7 @@ from db import User
 from db import Category
 from db import Bucket
 from db import Asset
+from db import Phone
 # Download the helper library from https://www.twilio.com/docs/python/install
 import os
 from twilio.rest import Client
@@ -29,6 +30,8 @@ for event in events:
         for u in reminded:
             # Find your Account SID and Auth Token at twilio.com/console
             # and set the environment variables. See http://twil.io/secure
+            uid = u.get("id")
+            phone = Phone.query.filter_by(user_id=uid).first()
             account_sid = os.environ['TWILIO_ACCOUNT_SID']
             auth_token = os.environ['TWILIO_AUTH_TOKEN']
             client = Client(account_sid, auth_token)
@@ -37,7 +40,7 @@ for event in events:
                 body='Hello there! You have an upcoming event! Please visit the Buckethaca app for more info :)',
                 from_='+13254408918',
                 media_url=['https://demo.twilio.com/owl.png'],
-                to= u.get("phone_number")
+                to= phone.get("number")
             )
 
         print(message.sid)

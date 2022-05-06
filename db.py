@@ -15,6 +15,9 @@ import string
 
 import hashlib
 
+from sqlalchemy import ForeignKey
+import bcrypt
+
 db = SQLAlchemy()
 
 user_bucket_list_association_table =db.Table(
@@ -158,6 +161,19 @@ class User(db.Model):
 #     number = db.Column(db.Integer, nullable=False)
 #     user_id = db.Column(db.)
 
+    def _init_(self, **kwargs):
+        """
+        Initialize User object/entry
+        """
+        self.number = kwargs.get("number")
+
+    def serialize(self):
+        """
+        Serializes User object
+        """
+        return {
+            "number": self.number
+        }
 
 
 class Event(db.Model):

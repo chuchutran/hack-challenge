@@ -14,10 +14,8 @@ import re
 import string
 
 import hashlib
-import bcrypt
 
 db = SQLAlchemy()
-
 
 user_bucket_list_association_table =db.Table(
     "association_user_bucket_list", 
@@ -36,12 +34,6 @@ saved_buckets_association_table = db.Table(
     db.Column("users_saved_id", db.Integer, db.ForeignKey("buckets.id"))
     )
 
-# reminder_events_association_table = db.Table(
-#     "association_reminder_events",
-#     db.Column("reminder_events_id", db.Integer, db.ForeignKey("users.id")),
-#     db.Column("users_reminder_id", db.Integer, db.ForeignKey("events.id"))
-#     )
-
 created_events_association_table = db.Table(
     "association_created_events",
     db.Column("created_events_id", db.Integer, db.ForeignKey("users.id")),
@@ -58,22 +50,53 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True)
-    # profile_pic = db.Column(db.String, nullable=False)
     
+    # Session information
+    session_token = db.Column(db.String, nullable=False, unique=True)
+    session_expiration = db.Column(db.DateTime, nullable=False)
+    update_token = db.Column(db.String, nullable=False, unique=True)
+
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
-    # reminder_events = db.relationship("Event", secondary=reminder_events_association_table, back_populates="users_reminder")
     created_events = db.relationship("Event", secondary=created_events_association_table, back_populates="users_created")
     completed_bucket_list = db.relationship("Bucket", secondary=user_bucket_list_association_table, back_populates="users_completed")
 
-   
     def _init_(self, **kwargs):
         """
         Initialize User object/entry
         """
         self.name = kwargs.get("name")
         self.email = kwargs.get("email")
-        # self.profile_pic = kwargs.get("profile_pic")
+        self.renew_session()
+
+    def _urlsafe_base_64(self):
+        """
+        Randomly generates hashed tokens (used for session/update tokens)
+        """
+        return hashlib.sha1(os.urandom(64)).hexdigest()
+
+    def renew_session(self):
+        """
+        Renews the sessions, i.e.
+        1. Creates a new session token
+        2. Sets the expiration time of the session to be a day from now
+        3. Creates a new update token
+        """
+        self.session_token = self._urlsafe_base_64()
+        self.session_expiration = datetime.datetime.now() + datetime.timedelta(days=1)
+        self.update_token = self._urlsafe_base_64()
+
+    def verify_session_token(self, session_token):
+        """
+        Verifies the session token of a user
+        """
+        return session_token == self.session_token and datetime.datetime.now() < self.session_expiration
+
+    def verify_update_token(self, update_token):
+        """
+        Verifies the update token of a user
+        """
+        return update_token == self.update_token
 
     def serialize(self):
         """
@@ -157,7 +180,6 @@ class Event(db.Model):
     image_id = db.Column(db.Integer, db.ForeignKey("assets.id"), nullable=False)
 
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
-    # users_reminder = db.relationship("User", secondary=reminder_events_association_table, back_populates="reminder_events")
     users_created = db.relationship("User", secondary=created_events_association_table, back_populates="created_events")
 
     def _init_(self, **kwargs):
@@ -250,7 +272,6 @@ class Asset(db.Model):
     extension =  db.Column(db.String, nullable=False)
     width = db.Column(db.Integer, nullable=False)
     height = db.Column(db.Integer, nullable=False)
-    #created_at = db.Column(db.DateTime, nullable=False)
 
     def __init__(self,**kwargs):
         """

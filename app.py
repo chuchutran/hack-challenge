@@ -48,7 +48,8 @@ def failure_response(message, code=404):
 
 
 # -- GOOGLE ROUTES ------------------------------------------------------
-@app.route("/api/login/")
+
+@app.route("/api/login/", methods=["POST"])
 def login():
     """
     Endpoint for logging a user in with Google
@@ -59,10 +60,15 @@ def login():
         id_info = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get("CLIENT_ID"))
         email, first_name, last_name = id_info["email"], id_info["given_name"], id_info["family_name"]
         name = first_name + " " + last_name
-        # create user
-        new_user = User(name=name, email=email)
+        
+        user = User.query.filter_by(email=email).first()
+        if user is None:
+            # create user 
+            new_user = User(email=email, name=name)
         return new_user.serialize()
+
         # create session
+
         # return session serialize
     except ValueError:
         raise Exception("Invalid Token")
@@ -206,13 +212,18 @@ def delete_event(user_id,event_id):
     db.session.commit()
     return success_response(event.serialize())
 
-@app.route("/api/events/random/")
-def get_random_event():
+@app.route("/api/events/<int:event_id>/random/")
+def get_random_event(event_id):
     """
     Endpoint for getting a random event
     """
-    list = Event.query.all() + Bucket.query.all()
+    list = Event.query.all() 
     random.shuffle(list)
+    event = Event.query.filter_by(id=event_id).first()
+    if event is None:
+        return failure_response("Event not found!")
+    while list[0] == event:
+        random.shuffle(list)
     return success_response(list[0].serialize())
 
 @app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["POST"])
@@ -258,7 +269,7 @@ def delete_bookmark_current(user_id, event_id):
         if event.id==event_id:
             user.saved_events.remove(event)
     db.session.commit()
-    return success_response(event.simple_serialize())
+    return success_response(event.serialize(), 200)
 
 
 

@@ -1,5 +1,6 @@
 import code
 from flask_sqlalchemy import SQLAlchemy
+
 import base64
 import boto3
 import datetime
@@ -35,11 +36,11 @@ saved_buckets_association_table = db.Table(
     db.Column("users_saved_id", db.Integer, db.ForeignKey("buckets.id"))
     )
 
-reminder_events_association_table = db.Table(
-    "association_reminder_events",
-    db.Column("reminder_events_id", db.Integer, db.ForeignKey("users.id")),
-    db.Column("users_reminder_id", db.Integer, db.ForeignKey("events.id"))
-    )
+# reminder_events_association_table = db.Table(
+#     "association_reminder_events",
+#     db.Column("reminder_events_id", db.Integer, db.ForeignKey("users.id")),
+#     db.Column("users_reminder_id", db.Integer, db.ForeignKey("events.id"))
+#     )
 
 created_events_association_table = db.Table(
     "association_created_events",
@@ -61,7 +62,7 @@ class User(db.Model):
     
     saved_events = db.relationship("Event", secondary=saved_events_association_table, back_populates="users_saved")
     saved_buckets = db.relationship("Bucket", secondary=saved_buckets_association_table, back_populates="users_saved")
-    reminder_events = db.relationship("Event", secondary=reminder_events_association_table, back_populates="users_reminder")
+    # reminder_events = db.relationship("Event", secondary=reminder_events_association_table, back_populates="users_reminder")
     created_events = db.relationship("Event", secondary=created_events_association_table, back_populates="users_created")
     completed_bucket_list = db.relationship("Bucket", secondary=user_bucket_list_association_table, back_populates="users_completed")
 
@@ -84,7 +85,7 @@ class User(db.Model):
             "email": self.email,
             "saved_events": [e.serialize() for e in self.saved_events], 
             "saved_buckets": [b.serialize() for b in self.saved_buckets],
-            "reminder_events": [r.serialize() for r in self.reminder_events],
+            # "reminder_events": [r.serialize() for r in self.reminder_events],
             "created_events": [c.serialize() for c in self.created_events], 
             "completed_bucket_list": [u.serialize() for u in self.completed_bucket_list]
         }
@@ -122,6 +123,20 @@ class User(db.Model):
             "created_events": [c.serialize() for c in self.created_events]
         }
 
+# class Phone(db.Model):
+#     """
+#     Phone number model 
+
+#     Has a one-to-one relationship with Users table 
+#     """
+
+#     __tablename__ = "phone_numbers"
+#     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+#     number = db.Column(db.Integer, nullable=False)
+#     user_id = db.Column(db.)
+
+
+
 class Event(db.Model):
     """
     Event model 
@@ -142,7 +157,7 @@ class Event(db.Model):
     image_id = db.Column(db.Integer, db.ForeignKey("assets.id"), nullable=False)
 
     users_saved = db.relationship("User", secondary=saved_events_association_table, back_populates="saved_events")
-    users_reminder = db.relationship("User", secondary=reminder_events_association_table, back_populates="reminder_events")
+    # users_reminder = db.relationship("User", secondary=reminder_events_association_table, back_populates="reminder_events")
     users_created = db.relationship("User", secondary=created_events_association_table, back_populates="created_events")
 
     def _init_(self, **kwargs):
@@ -204,7 +219,8 @@ class Bucket(db.Model):
         """
         Initialize Bucket object
         """
-    
+        pass
+
     def serialize(self):
         """
         Serializes a Bucket object 

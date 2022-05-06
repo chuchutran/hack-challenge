@@ -23,12 +23,9 @@ for event in events:
         db.session.commit()
     
     # checks if date and time are equal
-    user = User.query.filter_by(id=user_id).first()
-    user.get("phone_number")
-    reminded = event.get("user_reminders") #get the users that need to be reminded about that event
-
     yesterday = datetime.now() - timedelta(1)
     if event_time == yesterday:
+        reminded = event.get("users_saved") #get the users that need to be reminded about that event
         for u in reminded:
             # Find your Account SID and Auth Token at twilio.com/console
             # and set the environment variables. See http://twil.io/secure
@@ -37,10 +34,10 @@ for event in events:
             client = Client(account_sid, auth_token)
 
             message = client.messages.create(
-                body='Hello there!',
+                body='Hello there! You have an upcoming event! Please visit the Buckethaca app for more info :)',
                 from_='+13254408918',
                 media_url=['https://demo.twilio.com/owl.png'],
-                to=reminded.get("phone_number")
+                to= u.get("phone_number")
             )
 
         print(message.sid)

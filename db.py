@@ -168,9 +168,9 @@ class Event(db.Model):
         self.date = kwargs.get("date")
         self.location = kwargs.get("location")
         self.description = kwargs.get("description")
-        self.image_id = kwargs.get("image_id")
         self.categories = kwargs.get("categories")
-    
+        self.image_id = kwargs.get("image_id")
+        
     def serialize(self):
         """
         Serializes Event object
@@ -262,8 +262,6 @@ class Asset(db.Model):
         Serialize Asset object
         """
         return f"{self.base_url}/{self.salt}.{self.extension}"
-
-    
 
     def event_serialize(self):
         """

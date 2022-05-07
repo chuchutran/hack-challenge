@@ -57,7 +57,7 @@ def failure_response(message, code=404):
 
 def extract_token(request):
     """
-    ?? Helper function that extracts the token from the header of a request
+    Helper function that extracts the token from the header of a request
     """
     # get the value inside authorization header
     auth_header = request.headers.get("Authorization")
@@ -88,10 +88,10 @@ def login():
             user = User(email=email, name=name)
             db.session.add(user)
             db.session.commit()
-        # renews session of returning users
-        user.renew_session()
-        db.session.commit()
-        
+        else: 
+            # renews session of returning users
+            user.renew_session()
+            db.session.commit()
         return success_response(user.serialize().append(
             {
                 "session_token": user.session_token,
@@ -107,7 +107,7 @@ def login():
 @app.route("/logout/", methods=["POST"])
 def logout():
     """
-    ?? Endpoint for logging a user out
+    Endpoint for logging a user out
     """
     was_successful, session_token = extract_token(request)
 
@@ -124,23 +124,6 @@ def logout():
 
 
 # -- USER ROUTES ------------------------------------------------------
-@app.route("/api/users/", methods=["POST"])
-def create_user():
-    """
-    Endpoint for creating a user
-    """
-    body = json.loads(request.data)
-    name=body.get("name")
-    email=body.get("email")
-    if name is None:
-        return failure_response("Please enter something for name", 400)
-    if email is None:
-        return failure_response("Please enter something for email", 400)
-    new_user = User(name=name, email=email) #can you dp this? input things into assocaition table when they are being created?
-    db.session.add(new_user)
-    db.session.commit()
-    return success_response(new_user.serialize(), 201)
-
 @app.route("/api/users/<int:user_id>/")
 def get_specific_user(user_id):
     """
@@ -162,6 +145,7 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return success_response(user.serialize())
+
 
 # -- EVENT ROUTES ------------------------------------------------------
 @app.route("/api/events/")
@@ -263,18 +247,13 @@ def delete_event(user_id,event_id):
     db.session.commit()
     return success_response(event.serialize())
 
-@app.route("/api/events/<int:event_id>/random/")
-def get_random_event(event_id):
+@app.route("/api/events/random/")
+def get_random_event():
     """
     Endpoint for getting a random event
     """
     list = Event.query.all() 
     random.shuffle(list)
-    event = Event.query.filter_by(id=event_id).first()
-    if event is None:
-        return failure_response("Event not found!")
-    while list[0] == event:
-        random.shuffle(list)
     return success_response(list[0].serialize())
 
 @app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["POST"])

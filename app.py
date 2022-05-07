@@ -5,7 +5,7 @@ from db import Event
 from db import User 
 from db import Bucket
 from db import Asset
-from db import Phone
+from db import Category
 
 import users_dao
 
@@ -95,10 +95,12 @@ def add_number(user_id):
     number = body.get("number")
     if number is None:
         return failure_response("Please input a phone number", 400)
-    phone_number = Phone(user_id=user_id, number=number)
-    db.session.add(phone_number)
+    user = User.query.filter_by(id=user_id).first()
+    if user is None:
+        return failure_response("User not found", 404)
+    user.number = number
     db.session.commit()
-    return success_response(phone_number.serialize())
+    return success_response(user.serialize())
 
 
 # -- USER ROUTES ------------------------------------------------------
@@ -181,8 +183,6 @@ def create_event(user_id):
     if description is None:
         return failure_response("Please put something for the description", 400) 
     categories = body.get("categories")
-    if categories is None:
-        return failure_response("Please put something for the category", 400) 
     image_data = body.get("image_data")
     if image_data is None:
             return failure_response("No base64 image passed in!", 400)
@@ -193,7 +193,7 @@ def create_event(user_id):
     db.session.commit()
     
     # creates event object 
-    new_event = Event(title=title, date=date, host_name=host_name, location=location, description=description, image_id=image.id, categories=categories)
+    new_event = Event(title=title, date=date, host_name=host_name, location=location, description=description, image_id=image.id)
     db.session.add(new_event)
     # adds event to user created
     user.created_events.append(new_event)
@@ -376,6 +376,31 @@ def complete_bucket(bucket_id, user_id):
     return success_response(user.serialize())
 
 
+@app.route("/api/events/<int:event_id>/category/<int:category_id>/", methods=["POST"])
+def assign_category(event_id, category_id):
+    """ 
+    Endpoint for assigning a category to an event 
+    """
+    # checks if event exist
+    event = Event.query.filter_by(id=event_id).first()
+    if event is None:
+        return failure_response("Event not found!")
+    # checks if category exist
+    category = Category.query.filter_by(id=category_id).first()
+    if event is None:
+        return failure_response("Category not found!")
+    event.categories.append(category)
+    db.session.commit()
+    return success_response(event.serialize())
+
+@app.route("/api/category/<int:category_id>/")
+def get_events_in_category(category_id):
+    """ 
+    Endpoint for getting events in a category
+    """
+    # checks if category exist
+    category = Category.query.filter_by(id=category_id).first()
+    return success_response(category.serialize())
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

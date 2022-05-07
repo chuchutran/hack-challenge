@@ -22,7 +22,8 @@ from flask import Flask, redirect, request, url_for
 # google libraries
 from google.oauth2 import id_token
 from google.auth.transport import requests
- 
+import requests
+
 # define db filename 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
@@ -72,7 +73,7 @@ def extract_token(request):
 @app.route("/api/login/", methods=["POST"])
 def login():
     """
-    Endpoint for logging a user in with Google
+    Endpoint for logging a user in with Google and registering new users
     """
     data = json.loads(request.data)
     token = data.get("token")

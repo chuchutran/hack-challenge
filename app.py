@@ -15,6 +15,8 @@ import random
 from flask import Flask
 from flask import request 
 
+import requests
+
 import os
 
 # Third-party libraries
@@ -56,19 +58,6 @@ def failure_response(message, code=404):
     """
     return json.dumps({"error": message}), code
 
-def extract_token(request):
-    """
-    ?? Helper function that extracts the token from the header of a request
-    """
-    # get the value inside authorization header
-    auth_header = request.headers.get("Authorization")
-    if auth_header is None:
-        return False, json.dumps({"Missing authorization header"})
-
-    bearer_token = auth_header.replace("Bearer ", "").strip()
-
-    return True, bearer_token
-
 # -- GOOGLE ROUTES ------------------------------------------------------
 @app.route("/api/login/", methods=["POST"])
 def login():
@@ -78,6 +67,7 @@ def login():
     data = json.loads(request.data)
     token = data.get("token")
     try:
+        
         id_info = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get("CLIENT_ID"))
         email, first_name, last_name = id_info["email"], id_info["given_name"], id_info["family_name"]
         name = first_name + " " + last_name
@@ -89,18 +79,8 @@ def login():
             user = User(email=email, name=name)
             db.session.add(user)
             db.session.commit()
-        else:
-            # renews session of returning users
-            user.renew_session()
-            db.session.commit()
-        
-        return success_response(user.serialize().append(
-            {
-                "session_token": user.session_token,
-                "session_expiration": str(user.session_expiration),
-                "update_token": user.update_token
-            }, 201)
-    )
+
+        return success_response(user.serialize())
         # return session serialize
     except ValueError:
         raise Exception("Invalid Token")
@@ -119,30 +99,14 @@ def add_number(user_id):
     db.session.commit()
     return success_response(phone_number.serialize())
 
-@app.route("/logout/", methods=["POST"])
-def logout():
-    """
-    ?? Endpoint for logging a user out
-    """
-    was_successful, session_token = extract_token(request)
-
-    if not was_successful:
-        return session_token
-    
-    user = users_dao.get_user_by_session_token(session_token)
-
-    if not user or not user.verify_session_token(session_token):
-        return failure_response("Invalid session token")
-
-    user.session_expiration = datetime.datetime.now()
-    db.session.commit()
-
 
 # -- USER ROUTES ------------------------------------------------------
 @app.route("/api/users/", methods=["POST"])
 def create_user():
     """
     Endpoint for creating a user
+
+    this endpoint was used for testing purposes
     """
     body = json.loads(request.data)
     name=body.get("name")
@@ -151,7 +115,7 @@ def create_user():
         return failure_response("Please enter something for name", 400)
     if email is None:
         return failure_response("Please enter something for email", 400)
-    new_user = User(name=name, email=email) #can you dp this? input things into assocaition table when they are being created?
+    new_user = User(name=name, email=email)
     db.session.add(new_user)
     db.session.commit()
     return success_response(new_user.serialize(), 201)
@@ -178,6 +142,7 @@ def delete_user(user_id):
     db.session.commit()
     return success_response(user.serialize())
 
+
 # -- EVENT ROUTES ------------------------------------------------------
 @app.route("/api/events/")
 def get_all_events():
@@ -191,6 +156,7 @@ def get_all_events():
 def create_event(user_id):
     """
     Endpoint for creating a event
+
     """
     # checks if user exists
     user = User.query.filter_by(id=user_id).first()
@@ -274,22 +240,17 @@ def delete_event(user_id,event_id):
     # checks if user created the event
     if event not in user.created_events:
         return failure_response("User did not create this event!")
-    db.session.delete(event)
+    db.seswon.delete(event)
     db.session.commit()
     return success_response(event.serialize())
 
-@app.route("/api/events/<int:event_id>/random/")
-def get_random_event(event_id):
+@app.route("/api/events/random/")
+def get_random_event():
     """
     Endpoint for getting a random event
     """
     list = Event.query.all() 
     random.shuffle(list)
-    event = Event.query.filter_by(id=event_id).first()
-    if event is None:
-        return failure_response("Event not found!")
-    while list[0] == event:
-        random.shuffle(list)
     return success_response(list[0].serialize())
 
 @app.route("/api/users/<int:user_id>/events/<int:event_id>/bookmark/", methods=["POST"])

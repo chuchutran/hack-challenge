@@ -12,6 +12,7 @@ from twilio.rest import Client
 import time
 from datetime import datetime, timedelta
 
+
 events = Event.query.all()
 
 for event in events:
@@ -44,6 +45,8 @@ for event in events:
 
         print(message.sid)
 
+
+print("notify.py") 
 
 
 
